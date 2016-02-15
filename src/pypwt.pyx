@@ -33,7 +33,23 @@ cdef extern from "../ppdwt/wt.h":
         void set_image(float*, int)
 
 cdef class Wavelets:
+    """
+    Initializes the Wavelet transform from an image and given parameters.
 
+    img: 2D numpy.ndarray, float32
+        Input image
+    wname: string
+        Name of the wavelet
+    levels: int
+        Number of decomposition levels
+    do_separable: int
+        if not 0, perform a separable transform
+    do_cycle_spinning: int
+        if not 0, perform a random shift on the image
+        (useful for iterative algorithms)
+    do_swt: int
+        if not 0, perform a Stationary (non-decimated) wavelet transform
+    """
     # Attributes in cdef classes behave differently from attributes in regular classes:
     #   - All attributes must be pre-declared at compile-time
     #   - Attributes are by default only accessible from Cython (typed access)
@@ -48,7 +64,8 @@ cdef class Wavelets:
     cdef C_Wavelets* w # pointer to the C Wavelet object
     cdef readonly int Nr
     cdef readonly int Nc
-    cdef readonly char* wname
+    cdef readonly char* _wname
+    cdef readonly str wname
     cdef readonly int levels
     cdef readonly int do_cycle_spinning
     cdef int hlen
@@ -60,31 +77,12 @@ cdef class Wavelets:
 
     def __cinit__(self,
                     np.ndarray img,
-#~                     np.ndarray[ndim=2, dtype=np.float32_t] img,
                     str wname,
                     int levels,
                     int do_separable = 1,
                     int do_cycle_spinning = 0,
                     int do_swt = 0,
                   ):
-        """
-        Class constructor. Initializes the Wavelet transform
-        from an image and given parameters.
-
-        img: 2D numpy.ndarray, float32
-            Input image
-        wname: string
-            Name of the wavelet
-        levels: int
-            Number of decomposition levels
-        do_separable: int
-            if not 0, perform a separable transform
-        do_cycle_spinning: int
-            if not 0, perform a random shift on the image
-            (useful for iterative algorithms)
-        do_swt: int
-            if not 0, perform a Stationary (non-decimated) wavelet transform
-        """
 
         if img.ndim != 2: # TODO
             raise NotImplementedError("Wavelets(): Only 2D transform is supported for now")
@@ -97,10 +95,11 @@ cdef class Wavelets:
         for i in range(img.ndim):
             shp.append(img.shape[i])
         self.shape = tuple(shp)
+        self.wname = wname
 
         py_wname = wname.encode("ASCII") # python variable keeps the reference
         cdef char* c_wname = py_wname
-        self.wname = c_wname
+        self._wname = c_wname
         self.levels = levels
         self.do_separable = do_separable
         self.do_cycle_spinning = do_cycle_spinning
@@ -108,12 +107,10 @@ cdef class Wavelets:
 
         # Build the C++ Wavelet object
         #~ Wavelets(float* img, int Nr, int Nc, const char* wname, int levels, int memisonhost=1, int do_separable = 1, int do_cycle_spinning = 0, int do_swt = 0);
-#~         cdef float[:] c_data = img.ravel()
-#~         cfunc(&c_data[0]...)
 
         self.w = new C_Wavelets(<float*> np.PyArray_DATA(img),
                                 self.Nr, self.Nc,
-                                self.wname, self.levels,
+                                self._wname, self.levels,
                                 1, self.do_separable, self.do_cycle_spinning, self.do_swt)
         # Retrieve the possibly updated attributes after the C++ initialization
         self.levels = self.w.nlevels
@@ -137,12 +134,14 @@ cdef class Wavelets:
 
 
     def info(self):
+        """
+        Print some information on the current ``Wavelets`` instance.
+        """
         self.w.print_informations()
 
 
     @staticmethod
     def _checkarray(arr, shp=None):
-#~         res = np.ndarray[ndim=2, dtype=np.float32_t]
         res = arr
         if arr.dtype != np.float32 or not(arr.flags["C_CONTIGUOUS"]):
             res = np.ascontiguousarray(arr, dtype=np.float32)
@@ -206,14 +205,27 @@ cdef class Wavelets:
 
 #~     @image.setter # Not working in cython (?)
     def set_image(self, img):
+        """
+        Modifies the image of the wavelet class.
+
+        img: numpy.ndarray
+            Provided image. The dimensions have to be consistent with the current ``Wavelets`` instance.
+
+        **Note**: it does not update the coefficients. You have to perform ``Wavelets.forward()`` to update the coefficients.
+
+        """
         img = self._checkarray(img, (self.Nr, self.Nc))
         self.w.set_image(<float*> np.PyArray_DATA(img), 0)
 
 
+    def forward(self, img = None):
+        """
+        Performs the foward wavelet transform with the current configuration.
 
-
-
-    def forward(self, img = None):#np.ndarray[ndim=2, dtype=np.float32_t] img = None):
+        img: numpy.ndarray
+            Optionnal. If an image is provided, the transform is performed on this image.
+            Otherwise, the transform is performed on ``Wavelets.image``
+        """
         if img is not None:
             img = self._checkarray(img, self.shape)
             self.w.set_image(<float*> np.PyArray_DATA(img), 0)
@@ -221,16 +233,30 @@ cdef class Wavelets:
 
 
     def inverse(self):
+        """
+        Invert the wavelet transform with the current configuration.
+        It Transforms back the coefficients ``Wavelets.coeffs`` to an image.
+
+        **Note**: The inverse function modifies the coefficients.
+        This means that performing ``Wavelets.inverse()`` twice leads to an inconsistent result.
+        The underlying library prevents any further usage of ``Wavelets.coeffs`` (including ``Wavelets.inverse()``)
+        once ``Wavelets.inverse()`` has been performed once. This mechanism is reset as soon as ``Wavelets.forward()``
+        is performed.
+        """
         self.w.inverse()
 
 
 
     def soft_threshold(self, float beta, int do_threshold_appcoeffs = 1):
-        """soft_threshold(self, beta, do_threshold_appcoeffs)
-
+        """
         Soft threshold the wavelets coefficients.
         The soft thresholding is defined by
-        :math:`(|x| - t)_+ \cdot \text{sign}(x)`
+
+        .. math::
+
+            \\text{ST}(x, t) = (|x| - t)_+ \\cdot \\text{sign}(x)
+
+        This is the proximal operator of beta * L1 norm.
 
         beta: float
             threshold factor
@@ -243,36 +269,65 @@ cdef class Wavelets:
 
 
     def hard_threshold(self, float beta, int do_threshold_appcoeffs = 1):
+        """
+        Hard threshold the wavelets coefficients.
+        The hard thresholding is defined by
+
+        .. math::
+
+            \\text{HT}(x, t) = x \\cdot 1_{|x| > t}
+
+        beta: float
+            threshold factor
+        do_threshold_appcoeffs : int
+            if not 0, the approximation coefficients will also be thresholded
+        """
         cdef float c_beta = beta
         cdef int c_dt = do_threshold_appcoeffs
         self.w.hard_threshold(c_beta, c_dt)
 
 
     def shrink(self, float beta, int do_threshold_appcoeffs = 1):
+        """
+        Shrink the wavelets coefficients.
+        The shrink is defined by
+
+        .. math::
+
+            \\text{shrink}(x, t) = \\frac{x}{1+t}
+
+        This is the proximal operator of beta * L2 norm.
+
+        beta: float
+            shrink factor
+        do_threshold_appcoeffs : int
+            if not 0, the approximation coefficients will also be shrunk.
+        """
         cdef float c_beta = beta
         cdef int c_dt = do_threshold_appcoeffs
         self.w.shrink(c_beta, c_dt)
 
 
+    def norm1(self):
+        """
+        Returns the L1 norm of the Wavelets coefficients :
+
+        .. math::
+
+            \\left\\| w \\right\\|_1 = \\sum_i |w_i|
+
+        """
+        return self.w.norm1()
 
 
+    def norm2sq(self):
+        """
+        Returns the squared L2 norm of the Wavelets coefficients :
 
+            .. math::
 
-#~         py_dstbuf = np.zeros((Nr//2**levels, Nc//2**levels), dtype=np.float32)
-#~         c_dstbuf = <float*> np.PyArray_DATA(py_dstbuf)
-#~         print(self.w.get_coeff(c_dstbuf, 0))
-#~         import matplotlib.pyplot as plt
-#~         plt.figure()
-#~         plt.imshow(py_dstbuf, interpolation="nearest"); plt.colorbar()
-#~         plt.show()
+                \\left\\| w \\right\\|_2^2 = \\sum_i |w_i|^2
 
+        """
+        return self.w.norm2sq()
 
-#~         self.dim1 = len(arr)
-#~         self.g = new C_GPUAdder(&arr[0], self.dim1)
-
-
-#~     def retreive(self):
-#~         cdef np.ndarray[ndim=1, dtype=np.int32_t] a = np.zeros(self.dim1, dtype=np.int32)
-#~         self.g.retreive_to(&a[0], self.dim1)
-
-#~         return a

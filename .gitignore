@@ -2,6 +2,7 @@
 
 build/
 src/*.cpp
+doc/_build/
 
 ### C++ ###
 # Compiled Object files

@@ -18,6 +18,7 @@ if __name__ == '__main__':
 	#W = Wavelets(lena(), "db3", 2) # 0.27 ms
 	W = Wavelets(l, wname, 2)
 	print(l.dtype)
+	print(W.wname)
 	# W.info()
 	t0 = time()
 	W.forward()
