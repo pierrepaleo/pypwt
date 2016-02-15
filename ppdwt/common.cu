@@ -167,16 +167,16 @@ void w_shrink(float** d_coeffs, float beta, int Nr, int Nc, int nlevels, int do_
         Nc2 /= 2;
     }
     if (do_thresh_appcoeffs) {
-        cublasSscal(Nr2*Nc2, 1.0f + beta, d_coeffs[0], 1);
+        cublasSscal(Nr2*Nc2, 1.0f/(1.0f + beta), d_coeffs[0], 1);
     }
     for (int i = 0; i < nlevels; i++) {
         if (!do_swt) {
             Nr /= 2;
             Nc /= 2;
         }
-        cublasSscal(Nr*Nc, 1.0f + beta, d_coeffs[3*i+1], 1);
-        cublasSscal(Nr*Nc, 1.0f + beta, d_coeffs[3*i+2], 1);
-        cublasSscal(Nr*Nc, 1.0f + beta, d_coeffs[3*i+3], 1);
+        cublasSscal(Nr*Nc, 1.0f/(1.0f + beta), d_coeffs[3*i+1], 1);
+        cublasSscal(Nr*Nc, 1.0f/(1.0f + beta), d_coeffs[3*i+2], 1);
+        cublasSscal(Nr*Nc, 1.0f/(1.0f + beta), d_coeffs[3*i+3], 1);
     }
 }
 
