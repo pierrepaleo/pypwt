@@ -38,9 +38,9 @@ if __name__ == '__main__':
 	#W.set_image(0*l)
 	#ims(W.image)
 	
-	#W.soft_threshold(90.0)
+	#W.soft_threshold(90)
 	# W.hard_threshold(100.0)
-	W.shrink(90.0)
+	# W.shrink(90.0)
 
 	t0 = time()	
 	W.inverse()

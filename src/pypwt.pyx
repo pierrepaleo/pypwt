@@ -226,6 +226,17 @@ cdef class Wavelets:
 
 
     def soft_threshold(self, float beta, int do_threshold_appcoeffs = 1):
+        """soft_threshold(self, beta, do_threshold_appcoeffs)
+
+        Soft threshold the wavelets coefficients.
+        The soft thresholding is defined by
+        :math:`(|x| - t)_+ \cdot \text{sign}(x)`
+
+        beta: float
+            threshold factor
+        do_threshold_appcoeffs : int
+            if not 0, the approximation coefficients will also be thresholded
+        """
         cdef float c_beta = beta
         cdef int c_dt = do_threshold_appcoeffs
         self.w.soft_threshold(c_beta, c_dt)
