@@ -13,9 +13,11 @@ def ims(img):
 
 if __name__ == '__main__':
 
-	l = lena().astype(np.float32)
+	l = lena()#.astype(np.float32)
+	wname = "db3"
 	#W = Wavelets(lena(), "db3", 2) # 0.27 ms
-	W = Wavelets(l, "db3", 2)
+	W = Wavelets(l, wname, 2)
+	print(l.dtype)
 	# W.info()
 	t0 = time()
 	W.forward()
@@ -25,17 +27,29 @@ if __name__ == '__main__':
 
 	import pywt
 	t0 = time()
-	Wpy = pywt.wavedec2(l, "db3", mode='per', level=2)
+	Wpy = pywt.wavedec2(l, wname, mode='per', level=2)
 	el = (time()-t0)*1e3
         print("pywt took %.3f ms" % (el))
 
 	diff = W.coeffs[0] - Wpy[0]
 	print(np.max(np.abs(diff)))
-	ims(diff)
+	#ims(diff)
 
+	#W.set_image(0*l)
+	#ims(W.image)
+	
+	#W.soft_threshold(90.0)
+	# W.hard_threshold(100.0)
+	W.shrink(90.0)
 
-	W.set_image(0*l)
-	ims(W.image)	
+	t0 = time()	
 	W.inverse()
-	print("Inversion OK")
+	el = (time()-t0)*1e3
+        print("(inversion) pypwt took %.3f ms" % (el))
+	t0 = time()
+	pywt.waverec2(Wpy, wname, mode='per')
+	el = (time()-t0)*1e3
+        print("(inversion) pywt took %.3f ms" % (el))
+
+	print(np.max(np.abs(l - W.image)))
 	ims(W.image)
