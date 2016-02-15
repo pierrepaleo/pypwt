@@ -23,6 +23,7 @@ cdef extern from "../ppdwt/wt.h":
         void forward()
         void soft_threshold(float, int)
         void hard_threshold(float, int)
+
         void circshift(int, int, int)
         void inverse()
         float norm2sq()
@@ -55,9 +56,11 @@ cdef class Wavelets:
     cdef readonly int do_swt
     cdef readonly int do_separable
     cdef list _coeffs
+#~     cdef np.ndarray _image
 
 
     def __cinit__(self,
+#~                     np.ndarray img,
                     np.ndarray[ndim=2, dtype=np.float32_t] img,
                     str wname,
                     int levels,
@@ -86,6 +89,7 @@ cdef class Wavelets:
 
         if img.ndim != 2: # TODO
             raise NotImplementedError("Wavelets(): Only 2D transform is supported for now")
+#~         img = self._checkarray(img)
 
         self.Nr = img.shape[0]
         self.Nc = img.shape[1]
@@ -130,6 +134,20 @@ cdef class Wavelets:
     def info(self):
         self.w.print_informations()
 
+    @staticmethod
+    def _checkarray(arr, shp=None):
+#~         res = np.ndarray[ndim=2, dtype=np.float32_t]
+        res = arr
+        if arr.dtype != np.float32 or not(arr.flags["C_CONTIGUOUS"]):
+            res = np.ascontiguousarray(arr, dtype=np.float32)
+        if shp is not None:
+            if arr.ndim != len(shp):
+                raise ValueError("Invalid number of dimensions (expected %d, got %d)" % (len(shp), arr.ndim))
+            for i in range(arr.ndim):
+                if arr.shape[i] != shp[i]:
+                    raise ValueError("The image does not have the correct shape (expected %s, got %s)" % (str(shp), str(arr.shape)))
+        return res
+
 
     def coeff_only(self, int num): # TODO : handle a (level, type) syntax ?
         """
@@ -169,7 +187,25 @@ cdef class Wavelets:
             self.coeff_only(cnt)
         return self._coeffs
 
-    # TODO (?) : @coeffs.setter (self._coeffs = ...), @coeffs.deleter (del self._coeffs)
+
+    @property
+    def image(self):
+        res = np.zeros((self.Nr, self.Nc), dtype=np.float32)
+        c_dstbuf = <float*> np.PyArray_DATA(res)
+        numc = self.w.get_image(c_dstbuf)
+        if numc != res.size:
+            raise RuntimeError("Wavelets.image(): something went wrong when retrieving image, expected %d coeffs, got %d" % (res.size, numc))
+        return res
+
+
+#~     @image.setter # Not working in cython (?)
+    def set_image(self, np.ndarray[ndim=2, dtype=np.float32_t] img):
+#~         if img.shape[0] != self.Nr or img.shape[1] != self.Nc:
+#~             raise ValueError("Wavelets.image(): invalid geometry for provided image (expected %s, got %s)" % (str(tuple(Nr, Nc)) , str(tuple(img.shape[0], img.shape[1]))))
+        self.w.set_image(<float*> np.PyArray_DATA(img), 0)
+
+
+
 
 
     def forward(self, np.ndarray[ndim=2, dtype=np.float32_t] img = None):
@@ -180,9 +216,15 @@ cdef class Wavelets:
         self.w.forward()
 
 
-    def soft_threshold(self, float beta):
+    def inverse(self):
+        self.w.inverse()
+
+
+
+    def soft_threshold(self, float beta, int do_threshold_appcoeffs = 1):
         cdef float c_beta = beta
-        self.w.soft_threshold()
+        cdef int c_dt = do_threshold_appcoeffs
+        self.w.soft_threshold(c_beta, c_dt)
 
 
 
