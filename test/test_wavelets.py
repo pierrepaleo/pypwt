@@ -154,9 +154,10 @@ class TestWavelet(ParametrizedTestCase):#(unittest.TestCase):
         Wpy: pywt coefficients (wavedec2 or swt2)
         swt: boolean
         """
+        wname = W.wname
         # retrieve all coefficients from GPU
         W_coeffs = W.coeffs
-        wname = W.wname
+
 
         if not(swt): # standard DWT
             levels = len(Wpy)-1
@@ -234,7 +235,7 @@ def test_suite_all_wavelets():
     print("Testing all the %d available filters" % len(available_filters))
     testSuite = unittest.TestSuite()
     maxlev = 2 # beware of filter size reducing the possible number of levels
-    for wname in available_filters[53:57]:
+    for wname in available_filters:
         testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=(wname, 2, 0)))
     return testSuite
 

@@ -31,12 +31,13 @@
 
 
 import unittest
-from test_wavelets import test_suite_wavelets
+from test_wavelets import test_suite_wavelets, test_suite_all_wavelets
 
 
 def test_suite_all():
     testSuite = unittest.TestSuite()
     testSuite.addTest(test_suite_wavelets())
+    testSuite.addTest(test_suite_all_wavelets())
     return testSuite
 
 def run():

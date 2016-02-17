@@ -141,9 +141,11 @@ cdef class Wavelets:
 
     def __repr__(self):
         self.info()
+        return ""
 
     def __str__(self):
         self.info()
+        return ""
 
 
     @staticmethod
