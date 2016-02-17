@@ -14,9 +14,10 @@ def ims(img):
 if __name__ == '__main__':
 
 	l = lena()#.astype(np.float32)
-	wname = "db3"
+	wname = "haar"#"db3"
+	nlevels = 8#2
 	#W = Wavelets(lena(), "db3", 2) # 0.27 ms
-	W = Wavelets(l, wname, 2)
+	W = Wavelets(l, wname, nlevels)
 	print(l.dtype)
 	print(W.wname)
 	# W.info()
@@ -28,7 +29,7 @@ if __name__ == '__main__':
 
 	import pywt
 	t0 = time()
-	Wpy = pywt.wavedec2(l, wname, mode='per', level=2)
+	Wpy = pywt.wavedec2(l, wname, mode='per', level=nlevels)
 	el = (time()-t0)*1e3
         print("pywt took %.3f ms" % (el))
 
