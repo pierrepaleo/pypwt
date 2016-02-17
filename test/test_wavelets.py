@@ -81,20 +81,20 @@ available_filters = [
     "bior4.4",
     "bior5.5",
     "bior6.8",
-    "rbior1.3",
-    "rbior1.5",
-    "rbior2.2",
-    "rbior2.4",
-    "rbior2.6",
-    "rbior2.8",
-    "rbior3.1",
-    "rbior3.3",
-    "rbior3.5",
-    "rbior3.7",
-    "rbior3.9",
-    "rbior4.4",
-    "rbior5.5",
-    "rbior6.8"]
+    "rbio1.3",
+    "rbio1.5",
+    "rbio2.2",
+    "rbio2.4",
+    "rbio2.6",
+    "rbio2.8",
+    "rbio3.1",
+    "rbio3.3",
+    "rbio3.5",
+    "rbio3.7",
+    "rbio3.9",
+    "rbio4.4",
+    "rbio5.5",
+    "rbio6.8"]
 
 
 def elapsed_ms(t0):
@@ -102,8 +102,10 @@ def elapsed_ms(t0):
 
 def _calc_errors(arr1, arr2, string=None):
     if string is None: string = ""
-    msg = str("%s max error: %e" % (string, np.max(np.abs(arr1 - arr2))))
+    maxerr = np.max(np.abs(arr1 - arr2))
+    msg = str("%s max error: %e" % (string, maxerr))
     logging.info(msg)
+    return maxerr
 
 
 
@@ -135,7 +137,7 @@ class ParametrizedTestCase(unittest.TestCase):
 class TestWavelet(ParametrizedTestCase):#(unittest.TestCase):
 
     def setUp(self):
-        logging.basicConfig(filename='results.log', filemode='w', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S', level=logging.DEBUG)
+        logging.basicConfig(filename='results.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S', level=logging.DEBUG)
         self.tol = 1e-3 # Maximum acceptable error wrt pywt for float32 precision
         self.data = lena()
         # Default arguments when testing only one wavelet
@@ -154,6 +156,7 @@ class TestWavelet(ParametrizedTestCase):#(unittest.TestCase):
         """
         # retrieve all coefficients from GPU
         W_coeffs = W.coeffs
+        wname = W.wname
 
         if not(swt): # standard DWT
             levels = len(Wpy)-1
@@ -162,7 +165,8 @@ class TestWavelet(ParametrizedTestCase):#(unittest.TestCase):
                 logging.error(err_msg)
                 raise ValueError(err_msg)
             A = Wpy[0]
-            _calc_errors(A, W_coeffs[0], "[app]")
+            maxerr = _calc_errors(A, W_coeffs[0], "[app]")
+            self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the approximation coefficients (errmax = %e)" % (wname, maxerr))
             for i in range(levels):
                 D1, D2, D3 = Wpy[levels-i][0], Wpy[levels-i][1], Wpy[levels-i][2]
                 logging.info("%s Level %d %s" % ("-"*5, i+1, "-"*5))
@@ -171,9 +175,12 @@ class TestWavelet(ParametrizedTestCase):#(unittest.TestCase):
                     D2 = D1
                     D1 = tmp
                 # ----
-                _calc_errors(D1, W_coeffs[i+1][0], "[det.H]")
-                _calc_errors(D2, W_coeffs[i+1][1], "[det.V]")
-                _calc_errors(D3, W_coeffs[i+1][2], "[det.D]")
+                maxerr = _calc_errors(D1, W_coeffs[i+1][0], "[det.H]")
+                self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the detail coefficients 1 at level %d (errmax = %e)" % (wname, i+1, maxerr))
+                maxerr = _calc_errors(D2, W_coeffs[i+1][1], "[det.V]")
+                self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the detail coefficients 2 at level %d (errmax = %e)" % (wname, i+1, maxerr))
+                maxerr = _calc_errors(D3, W_coeffs[i+1][2], "[det.D]")
+                self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the detail coefficients 3 at level %d (errmax = %e)" % (wname, i+1, maxerr))
 
         else: # SWT
             levels = len(Wpy)
@@ -227,20 +234,20 @@ def test_suite_all_wavelets():
     print("Testing all the %d available filters" % len(available_filters))
     testSuite = unittest.TestSuite()
     maxlev = 2 # beware of filter size reducing the possible number of levels
-    for wname in available_filters:
+    for wname in available_filters[53:57]:
         testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=(wname, 2, 0)))
     return testSuite
 
 
 def test_suite_wavelets():
     testSuite = unittest.TestSuite()
-    #~ testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=("haar", 8, 0)))
-    testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=("rbior2.4", 3, 0)))
+    testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=("haar", 8, 0)))
+    #~ testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=("rbio3.1", 3, 0)))
     return testSuite
 
 if __name__ == '__main__':
-    mysuite = test_suite_wavelets()
-    #~ mysuite = test_suite_all_wavelets()
+    #~ mysuite = test_suite_wavelets()
+    mysuite = test_suite_all_wavelets()
     runner = unittest.TextTestRunner()
     runner.run(mysuite)
 

@@ -139,6 +139,12 @@ cdef class Wavelets:
         """
         self.w.print_informations()
 
+    def __repr__(self):
+        self.info()
+
+    def __str__(self):
+        self.info()
+
 
     @staticmethod
     def _checkarray(arr, shp=None):
