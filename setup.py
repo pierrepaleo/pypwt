@@ -68,8 +68,12 @@ def locate_cuda():
         home = os.path.dirname(os.path.dirname(nvcc))
 
     cudaconfig = {'home':home, 'nvcc':nvcc,
-                  'include': pjoin(home, 'include'),
-                  'lib64': pjoin(home, 'lib64')}
+                  'include': pjoin(home, 'include')}
+
+    #~ cudaconfig = {'home':home, 'nvcc':nvcc,
+                  #~ 'include': pjoin(home, 'include'),
+                  #~ 'lib64': pjoin(home, 'lib64')}
+
     for k, v in cudaconfig.iteritems():
         if not os.path.exists(v):
             raise EnvironmentError('The CUDA %s path could not be located in %s' % (k, v))
@@ -85,10 +89,10 @@ except AttributeError:
 
 ext = Extension('pypwt',
                 sources=['ppdwt/wt.cu', 'ppdwt/common.cu', 'src/pypwt.pyx'],
-                library_dirs=[CUDA['lib64']],
+                #~ library_dirs=[CUDA['lib64']],
                 libraries=['cudart', 'cublas'],
                 language='c++',
-                runtime_library_dirs=[CUDA['lib64']],
+                #~ runtime_library_dirs=[CUDA['lib64']],
                 # this syntax is specific to this build system
                 # we're only going to use certain compiler args with nvcc and not with gcc
                 # the implementation of this trick is in customize_compiler() below
