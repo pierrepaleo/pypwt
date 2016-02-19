@@ -26,6 +26,7 @@ except ImportError:
 # See ppdwt/filters.h
 available_filters = [
     "haar",
+    "db2",
     "db3",
     "db4",
     "db5",
@@ -44,6 +45,7 @@ available_filters = [
     "db18",
     "db19",
     "db20",
+    "sym2",
     "sym3",
     "sym4",
     "sym5",
