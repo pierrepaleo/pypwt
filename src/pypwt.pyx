@@ -189,8 +189,7 @@ cdef class Wavelets:
     def coeffs(self):
         """
         Get all the coefficients from the C++ class instance
-        Returns the following list :
-            [A, [H1, V1, D1], [H2, V2, D2], ...]
+        Returns the following list : [A, [H1, V1, D1], [H2, V2, D2], ...]
         Note: using coeffs[0] is slower than coeff_only(0),
         since calling coeff() copies all the coefficients from the device
         """

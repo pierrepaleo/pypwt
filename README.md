@@ -3,6 +3,15 @@
 pypwt is a python module for parallel Discrete Wavelet Transform.
 This is a wrapper of [PDWT](https://github.com/pierrepaleo/PDWT).
 
+
+## Features
+
+* Pythonic interface providing the full potential of [PDWT](https://github.com/pierrepaleo/PDWT)
+* Compatible with Python >=2.7 and Python >=3.4
+* Test suite
+* Documentation and examples
+
+
 ## Installation
 
 ### Requirements
@@ -19,7 +28,7 @@ Running
 python setup.py install --user
 ```
 
-should build and install the module.
+should build and install the module. For python3, just replace `python` with `python3`.
 
 
 ### Testing
