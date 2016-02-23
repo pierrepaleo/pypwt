@@ -15,6 +15,21 @@ before_install:
   - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_7.5-18_amd64.deb
 #  - travis_retry sudo dpkg -i cuda-repo-ubuntu1404_${CUDAVERSION}_amd64.deb
   - travis_retry sudo dpkg -i cuda-repo-ubuntu1404_7.5-18_amd64.deb
+
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-driver-dev-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-license-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-nvrtc-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-cusolver-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-cublas-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-cufft-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-curand-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-cusparse-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-npp-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-cudart-7-5_7.5-18_amd64.deb
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-runtime-7-5_7.5-18_amd64.deb
+  - travis_retry sudo dpkg -i cuda-driver-dev-7-5_7.5-18_amd64.deb cuda-license-7-5_7.5-18_amd64.deb cuda-nvrtc-7-5_7.5-18_amd64.deb cuda-cusolver-7-5_7.5-18_amd64.deb cuda-cublas-7-5_7.5-18_amd64.deb cuda-cufft-7-5_7.5-18_amd64.deb cuda-curand-7-5_7.5-18_amd64.deb cuda-cusparse-7-5_7.5-18_amd64.deb cuda-npp-7-5_7.5-18_amd64.deb cuda-cudart-7-5_7.5-18_amd64.deb cuda-runtime-7-5_7.5-18_amd64.deb
+
+
   - travis_retry sudo apt-get update -qq
 #  - travis_retry sudo apt-get install -y cuda-drivers
   - travis_retry sudo apt-get install -y cuda-7-5 cuda
