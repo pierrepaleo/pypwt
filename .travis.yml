@@ -17,7 +17,7 @@ before_install:
   - travis_retry sudo dpkg -i cuda-repo-ubuntu1404_7.5-18_amd64.deb
   - travis_retry sudo apt-get update -qq
 #  - travis_retry sudo apt-get install -y cuda-drivers
-  - travis_retry sudo apt-get install -y cuda
+  - travis_retry sudo apt-get install -y cuda-7-5 cuda
   - export CUDA_HOME=/usr/local/cuda-7.5
   - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64
   - PATH=${CUDA_HOME}/bin:${PATH}
