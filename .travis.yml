@@ -1,16 +1,26 @@
 os:
   - linux
-
 language: python
 python:
   - "2.7"
   - "3.4"
 
+sudo: true
+
 before_install:
-  # for travis machines
-  - sudo apt-get install -y nvidia-opencl-dev nvidia-compute-profiler
-  - sudo apt-get install -y nvidia-cuda-toolkit
-  - sudo apt-get install -y python-pywt
+  # Install the CUDA toolkit
+  - echo "Installing CUDA library"
+  - export CUDAVERSION=6-5_6.5-14
+  - travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_${CUDAVERSION}_amd64.deb
+  - travis_retry sudo dpkg -i cuda-repo-ubuntu1404_${CUDAVERSION}_amd64.deb
+  - travis_retry sudo apt-get update -qq
+#  - travis_retry sudo apt-get install -y cuda-drivers
+  - travis_retry sudo apt-get install -y cuda
+  - export CUDA_HOME=/usr/local/cuda-7.5
+  - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64
+  - PATH=${CUDA_HOME}/bin:${PATH}
+  - export PATH
+
 
 install:
   - "pip install --upgrade pip"
