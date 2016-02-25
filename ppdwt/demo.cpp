@@ -6,11 +6,11 @@
 
 
 ///
-/// This file shows how to use PPDWT with some examples.
+/// This file shows how to use PDWT with some examples.
 ///
 
 void print_examples() {
-    puts("---------------------- PPDWT examples ----------------------");
+    puts("---------------------- PDWT examples ----------------------");
     puts("1 \t Forward DWT");
     puts("2 \t Forward and inverse DWT, \"perfect reconstruction\"");
     puts("3 \t Forward DWT, threshold and inverse DWT");
@@ -140,37 +140,25 @@ int main(int argc, char **argv) {
     W.forward();
     puts("Forward OK");
 
-    int nels, Nr2, Nc2;
-    if (W.do_swt) {
-        Nr2 = Nr;
-        Nc2 = Nc;
-    }
-    else {
-        Nr2 = (Nr >> nlevels);
-        Nc2 = (Nc >> nlevels);
-    }
-    nels = Nr2*Nc2;
-    float* thecoeffs = (float*) calloc(nels, sizeof(float));
-    W.get_coeff(thecoeffs, 0); //3*(nlevels-1)+3);
+    float* thecoeffs = (float*) calloc(Nr*Nc, sizeof(float)); // larger than needed
+    int nels = W.get_coeff(thecoeffs, 0); //3*(nlevels-1)+3);
     write_dat_file_float("res.dat", thecoeffs, nels);
     if (what == 1) {
-        printf("Approximation coefficients (%dx%d) are stored in res.dat\n", Nr2, Nc2);
+        printf("Approximation coefficients (level %d) are stored in res.dat\n", nlevels);
         return 0;
     }
 
     if (what == 3) {
         printf("Before threshold : L1 = %e\n", W.norm1());
-        W.soft_threshold(490.0, 0);
+        W.soft_threshold(90.0, 0);
         printf("After threshold : L1 = %e\n", W.norm1());
     }
 
 
-    // Perform inverse WT with current configuration
-    /*
+    // Perform inverse WT with current configuration.
+    // Ensures that the result is actually the inverse
     float* dummy = (float*) calloc(Nr*Nc, sizeof(float));
     W.set_image(dummy, 0);
-    W.inverse();
-    * */
 
     W.inverse();
     puts("Inverse OK");

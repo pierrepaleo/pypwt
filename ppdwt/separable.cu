@@ -182,6 +182,29 @@ int w_forward_separable(float* d_image, float** d_coeffs, float* d_tmp, int Nr, 
 
 
 
+// (batched) 1D transform. It boils down to the 2D separable transform without the second pass.
+int w_forward_separable_1d(float* d_image, float** d_coeffs, float* d_tmp, int Nr, int Nc, int levels, int hlen) {
+    float* d_tmp1 = d_coeffs[0];
+    float* d_tmp2 = d_tmp;
+    // First level
+    int tpb = 16; // TODO : tune for max perfs.
+    int Nc2 = Nc/2;
+    // TODO: which block strategy for the "y" dimension ?
+    dim3 n_blocks = dim3(w_iDivUp(Nc2, tpb), w_iDivUp(Nr, tpb), 1);
+    dim3 n_threads_per_block = dim3(tpb, tpb, 1);
+    w_kern_forward_pass1<<<n_blocks, n_threads_per_block>>>(d_image, d_coeffs[0], d_coeffs[1], Nr, Nc2*2, hlen);
+    for (int i=1; i < levels; i++) {
+        Nc2 /= 2;
+        n_blocks = dim3(w_iDivUp(Nc2, tpb), w_iDivUp(Nr, tpb), 1);
+        w_kern_forward_pass1<<<n_blocks, n_threads_per_block>>>(d_tmp1, d_tmp2, d_coeffs[i+1], Nr, Nc2*2, hlen);
+        w_swap_ptr(&d_tmp1, &d_tmp2);
+    }
+    if ((levels & 1) == 0) cudaMemcpy(d_coeffs[0], d_tmp, Nr*Nc2*sizeof(float), cudaMemcpyDeviceToDevice);
+    return 0;
+}
+
+
+
 /// ----------------------------------------------------------------------------
 /// ---------------------------- Inverse DWT -----------------------------------
 /// ----------------------------------------------------------------------------
@@ -305,6 +328,34 @@ int w_inverse_separable(float* d_image, float** d_coeffs, float* d_tmp, int Nr, 
 }
 
 
+// (batched) 1D inverse transform. Boils down to 2D separable transform without the first pass.
+int w_inverse_separable_1d(float* d_image, float** d_coeffs, float* d_tmp, int Nr, int Nc, int levels, int hlen) {
+    float* d_tmp1 = d_coeffs[0];
+    float* d_tmp2 = d_tmp;
+    Nc /= w_ipow2(levels);
+
+    int tpb = 16; // TODO : tune for max perfs.
+    int Nc2 = Nc*2;
+    dim3 n_blocks;
+    dim3 n_threads_per_block = dim3(tpb, tpb, 1);
+
+    for (int i = levels-1; i >= 1; i--) {
+        n_blocks = dim3(w_iDivUp(Nc2, tpb), w_iDivUp(Nr, tpb), 1);
+        w_kern_inverse_pass2<<<n_blocks, n_threads_per_block>>>(d_tmp1, d_coeffs[i+1], d_tmp2, Nr, Nc2/2, hlen);
+        Nc2 *= 2;
+        w_swap_ptr(&d_tmp1, &d_tmp2);
+    }
+    if ((levels & 1) == 0) cudaMemcpy(d_coeffs[0], d_tmp, Nr*Nc2/2*sizeof(float), cudaMemcpyDeviceToDevice);
+    // First scale
+    n_blocks = dim3(w_iDivUp(Nc2, tpb), w_iDivUp(Nr, tpb), 1);
+    w_kern_inverse_pass2<<<n_blocks, n_threads_per_block>>>(d_coeffs[0], d_coeffs[1], d_image, Nr, Nc2/2, hlen);
+
+    return 0;
+}
+
+
+
+
 
 /// ----------------------------------------------------------------------------
 /// --------------------- Forward Undecimated DWT ------------------------------
@@ -403,14 +454,6 @@ __global__ void w_kern_forward_swt_pass2(float* tmp_a1, float* tmp_a2, float* c_
 
 int w_forward_swt_separable(float* d_image, float** d_coeffs, float* d_tmp, int Nr, int Nc, int levels, int hlen) {
 
-    //~ // DEBUG
-    //~ float* d_tmp1, *d_tmp2;
-    //~ cudaMalloc(&d_tmp1, Nr*Nc*sizeof(float));
-    //~ cudaMalloc(&d_tmp2, Nr*Nc*sizeof(float));
-    //~ puts("Performing forward SWT");
-    //~ // ----
-
-
     float* d_tmp1 = d_tmp;
     float* d_tmp2 = d_tmp + Nr*Nc;
 
@@ -428,6 +471,32 @@ int w_forward_swt_separable(float* d_image, float** d_coeffs, float* d_tmp, int 
     }
     return 0;
 }
+
+
+// (batched) 1D forward SWT. Boils down to 2D non-separable transform without the second pass.
+int w_forward_swt_separable_1d(float* d_image, float** d_coeffs, float* d_tmp, int Nr, int Nc, int levels, int hlen) {
+
+    float* d_tmp1 = d_coeffs[0];
+    float* d_tmp2 = d_tmp;
+
+    int tpb = 16; // TODO : tune for max perfs.
+    dim3 n_blocks = dim3(w_iDivUp(Nc, tpb), w_iDivUp(Nr, tpb), 1);
+    dim3 n_threads_per_block = dim3(tpb, tpb, 1);
+    // First level
+    w_kern_forward_swt_pass1<<<n_blocks, n_threads_per_block>>>(d_image, d_coeffs[0], d_coeffs[1], Nr, Nc, hlen, 1);
+    // Other levels
+    for (int i=1; i < levels; i++) {
+        w_kern_forward_swt_pass1<<<n_blocks, n_threads_per_block>>>(d_tmp1, d_tmp2, d_coeffs[i+1], Nr, Nc, hlen, i+1);
+        w_swap_ptr(&d_tmp1, &d_tmp2);
+    }
+    if ((levels & 1) == 0) cudaMemcpy(d_coeffs[0], d_tmp, Nr*Nc*sizeof(float), cudaMemcpyDeviceToDevice);
+    return 0;
+}
+
+
+
+
+
 
 
 
@@ -516,13 +585,6 @@ __global__ void w_kern_inverse_swt_pass2(float* tmp1, float* tmp2, float* img, i
 
 int w_inverse_swt_separable(float* d_image, float** d_coeffs, float* d_tmp, int Nr, int Nc, int levels, int hlen) {
 
-    //~ // DEBUG
-    //~ float* d_tmp1, *d_tmp2;
-    //~ cudaMalloc(&d_tmp1, Nr*Nc*sizeof(float));
-    //~ cudaMalloc(&d_tmp2, Nr*Nc*sizeof(float));
-    //~ puts("Performing inverse SWT");
-    //~ // ----
-
     float* d_tmp1 = d_tmp;
     float* d_tmp2 = d_tmp + Nr*Nc;
 
@@ -542,5 +604,26 @@ int w_inverse_swt_separable(float* d_image, float** d_coeffs, float* d_tmp, int 
     return 0;
 }
 
+
+// (batched) 1D inverse SWT. Boils down to 2D non-separable transform without the first pass.
+int w_inverse_swt_separable_1d(float* d_image, float** d_coeffs, float* d_tmp, int Nr, int Nc, int levels, int hlen) {
+
+    float* d_tmp1 = d_coeffs[0];
+    float* d_tmp2 = d_tmp;
+
+    int tpb = 16; // TODO : tune for max perfs.
+    dim3 n_blocks = dim3(w_iDivUp(Nc, tpb), w_iDivUp(Nr, tpb), 1);
+    dim3 n_threads_per_block = dim3(tpb, tpb, 1);
+
+    for (int i = levels-1; i >= 1; i--) {
+        w_kern_inverse_swt_pass2<<<n_blocks, n_threads_per_block>>>(d_tmp1, d_coeffs[i+1], d_tmp2, Nr, Nc, hlen, i+1);
+        w_swap_ptr(&d_tmp1, &d_tmp2);
+    }
+    if ((levels & 1) == 0) cudaMemcpy(d_coeffs[0], d_tmp, Nr*Nc*sizeof(float), cudaMemcpyDeviceToDevice);
+    // First scale
+    w_kern_inverse_swt_pass2<<<n_blocks, n_threads_per_block>>>(d_coeffs[0], d_coeffs[1], d_image, Nr, Nc, hlen, 1);
+
+    return 0;
+}
 
 

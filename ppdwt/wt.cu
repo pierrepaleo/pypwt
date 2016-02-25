@@ -42,6 +42,8 @@
 
 
 /// Constructor : copy assignment
+// do not use !
+/*
 Wavelets& Wavelets::operator=(const Wavelets &rhs) {
   if (this != &rhs) { // protect against invalid self-assignment
     // allocate new memory and copy the elements
@@ -52,7 +54,8 @@ Wavelets& Wavelets::operator=(const Wavelets &rhs) {
     cudaMemcpy(new_image, rhs.d_image, sz, cudaMemcpyDeviceToDevice);
 
     new_coeffs =  w_create_coeffs_buffer(rhs.Nr, rhs.Nc, rhs.nlevels, rhs.do_swt);
-    w_copy_coeffs_buffer(new_coeffs, rhs.d_coeffs, rhs.Nr, rhs.Nc, rhs.nlevels, rhs.do_swt);
+    if (ndim == 2) w_copy_coeffs_buffer(new_coeffs, rhs.d_coeffs, rhs.Nr, rhs.Nc, rhs.nlevels, rhs.do_swt);
+    else  w_copy_coeffs_buffer_1d(new_coeffs, rhs.d_coeffs, rhs.Nr, rhs.Nc, rhs.nlevels, rhs.do_swt);
 
     cudaMalloc(&new_tmp, sz);
     cudaMemcpy(new_tmp, rhs.d_tmp, 2*sz, cudaMemcpyDeviceToDevice); // Two temp. images
@@ -77,7 +80,7 @@ Wavelets& Wavelets::operator=(const Wavelets &rhs) {
   }
   return *this;
 }
-
+*/
 
 
 
@@ -97,7 +100,8 @@ Wavelets::Wavelets(
     int memisonhost,
     int do_separable,
     int do_cycle_spinning,
-    int do_swt) :
+    int do_swt,
+    int ndim) :
 
     d_image(NULL),
     Nr(Nr),
@@ -110,7 +114,8 @@ Wavelets::Wavelets(
     current_shift_c(0),
     do_swt(do_swt),
     do_separable(do_separable),
-    state(W_INIT)
+    state(W_INIT),
+    ndim(ndim)
 {
 
     if (nlevels < 1) {
@@ -135,9 +140,19 @@ Wavelets::Wavelets(
 
     // Coeffs
     float** d_coeffs_new;
-    d_coeffs_new = w_create_coeffs_buffer(Nr, Nc, nlevels, do_swt);
+    if (ndim == 1) d_coeffs_new = w_create_coeffs_buffer_1d(Nr, Nc, nlevels, do_swt);
+    else if (ndim == 2) d_coeffs_new = w_create_coeffs_buffer(Nr, Nc, nlevels, do_swt);
+    else {
+        printf("ERROR: ndim=%d is not implemented\n", ndim);
+        exit(1);
+    }
     this->d_coeffs = d_coeffs_new;
 
+    if (ndim == 1 && do_separable == 0) {
+        puts("Warning: requestred 1D DWT, which is incompatible with non-separable transform.");
+        puts("Forcing do_separable = 1");
+        do_separable = 1;
+    }
     // Filters
     strncpy(this->wname, wname, 128);
     int hlen = 0;
@@ -145,7 +160,7 @@ Wavelets::Wavelets(
     else hlen = w_compute_filters(wname, 1, do_swt);
     if (hlen == 0) {
         printf("ERROR: unknown wavelet name %s\n", wname);
-        exit(1); // FIXME : more graceful error
+        exit(1);
     }
     this->hlen = hlen;
 
@@ -153,18 +168,28 @@ Wavelets::Wavelets(
     int N = min(Nr, Nc);
     int wmaxlev = w_ilog2(N/hlen);
     if (levels > wmaxlev) {
-        printf("Warn: required level (%d) is greater than the maximum possible level for %s (%d).\n", nlevels, wname, wmaxlev);
+        printf("Warning: required level (%d) is greater than the maximum possible level for %s (%d).\n", nlevels, wname, wmaxlev);
         printf("Forcing nlevels = %d\n", wmaxlev);
         nlevels = wmaxlev;
     }
     if (do_cycle_spinning && do_swt) puts("Warning: makes little sense to use Cycle spinning with stationary Wavelet transform");
+    // TODO
+    if (do_cycle_spinning && ndim == 1) {
+        puts("ERROR: cycle spinning is not implemented for 1D. Use SWT instead.");
+        exit(1);
+    }
+
+
 }
 
 
 /// Destructor
 Wavelets::~Wavelets(void) {
     if (d_image) cudaFree(d_image);
-    if (d_coeffs) w_free_coeffs_buffer(d_coeffs, nlevels);
+    if (d_coeffs) {
+        if (ndim == 2) w_free_coeffs_buffer(d_coeffs, nlevels);
+        else w_free_coeffs_buffer_1d(d_coeffs, nlevels);
+    }
     if (d_tmp) cudaFree(d_tmp);
 }
 
@@ -175,17 +200,28 @@ void Wavelets::forward(void) {
         current_shift_c = rand() % Nc;
         circshift(current_shift_r, current_shift_c, 1);
     }
-    if ((hlen == 2) && (!do_swt)) haar_forward2d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
-    else {
-        if (do_separable) {
-            if (!do_swt) w_forward_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
-            else w_forward_swt_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
-        }
+    if (ndim == 1) {
+        if ((hlen == 2) && (!do_swt)) haar_forward1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
         else {
-            if (!do_swt) w_forward(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
-            else w_forward_swt(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            if (!do_swt) w_forward_separable_1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            else ; w_forward_swt_separable_1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
         }
     }
+    else if (ndim == 2) {
+        if ((hlen == 2) && (!do_swt)) haar_forward2d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
+        else {
+            if (do_separable) {
+                if (!do_swt) w_forward_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+                else w_forward_swt_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            }
+            else {
+                if (!do_swt) w_forward(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+                else w_forward_swt(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            }
+        }
+    }
+    // else: not implemented yet
+
     state = W_FORWARD;
 }
 /// Method : inverse
@@ -194,18 +230,28 @@ void Wavelets::inverse(void) {
         puts("Warning: W.inverse() has already been run. Inverse is available in W.get_image()");
         return;
     }
-    if ((hlen == 2) && (!do_swt)) haar_inverse2d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
-    else {
-        if (do_separable) {
-            if (!do_swt) w_inverse_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
-            else w_inverse_swt_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
-        }
+    if (ndim == 1) {
+        if ((hlen == 2) && (!do_swt)) haar_inverse1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
         else {
-            w_compute_filters(wname, -1, do_swt); // TODO : dedicated inverse coeffs to avoid this computation ?
-            if (!do_swt) w_inverse(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
-            else w_inverse_swt(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            if (!do_swt) w_inverse_separable_1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            else w_inverse_swt_separable_1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
         }
     }
+    else if (ndim == 2) {
+        if ((hlen == 2) && (!do_swt)) haar_inverse2d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
+        else {
+            if (do_separable) {
+                if (!do_swt) w_inverse_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+                else w_inverse_swt_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            }
+            else {
+                w_compute_filters(wname, -1, do_swt); // TODO : dedicated inverse coeffs to avoid this computation ?
+                if (!do_swt) w_inverse(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+                else w_inverse_swt(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            }
+        }
+    }
+    // else: not implemented yet
     if (do_cycle_spinning) circshift(-current_shift_r, -current_shift_c, 1);
     state = W_INVERSE;
 }
@@ -216,7 +262,7 @@ void Wavelets::soft_threshold(float beta, int do_thresh_appcoeffs) {
         puts("Warning: Wavelets(): cannot threshold coefficients, as they were modified by W.inverse()");
         return;
     }
-    w_call_soft_thresh(d_coeffs, beta, Nr, Nc, nlevels, do_swt, do_thresh_appcoeffs);
+    w_call_soft_thresh(d_coeffs, beta, Nr, Nc, nlevels, do_swt, do_thresh_appcoeffs, ndim);
 }
 
 /// Method : hard thresholding
@@ -225,7 +271,7 @@ void Wavelets::hard_threshold(float beta, int do_thresh_appcoeffs) {
         puts("Warning: Wavelets(): cannot threshold coefficients, as they were modified by W.inverse()");
         return;
     }
-    w_call_hard_thresh(d_coeffs, beta, Nr, Nc, nlevels, do_swt, do_thresh_appcoeffs);
+    w_call_hard_thresh(d_coeffs, beta, Nr, Nc, nlevels, do_swt, do_thresh_appcoeffs, ndim);
 }
 
 /// Method : shrink (L2 proximal)
@@ -234,7 +280,7 @@ void Wavelets::shrink(float beta, int do_thresh_appcoeffs) {
         puts("Warning: Wavelets(): cannot threshold coefficients, as they were modified by W.inverse()");
         return;
     }
-    w_shrink(d_coeffs, beta, Nr, Nc, nlevels, do_swt, do_thresh_appcoeffs);
+    w_shrink(d_coeffs, beta, Nr, Nc, nlevels, do_swt, do_thresh_appcoeffs, ndim);
 }
 
 
@@ -242,7 +288,7 @@ void Wavelets::shrink(float beta, int do_thresh_appcoeffs) {
 /// Method : circular shift
 // If inplace = 1, the result is in d_image ; otherwise result is in d_tmp.
 void Wavelets::circshift(int sr, int sc, int inplace) {
-    w_call_circshift(d_image, d_tmp, Nr, Nc, sr, sc, inplace);
+    w_call_circshift(d_image, d_tmp, Nr, Nc, sr, sc, inplace, ndim);
 }
 /// Method : squared L2 norm
 float Wavelets::norm2sq(void) {
@@ -264,16 +310,22 @@ float Wavelets::norm2sq(void) {
 /// Method : L1 norm
 float Wavelets::norm1(void) {
     float res = 0.0f;
-    int Nr2, Nc2;
-    if (!do_swt) { Nr2 = Nr/2; Nc2 = Nc/2; }
-    else { Nr2 = Nr; Nc2 = Nc; }
+    int Nr2 = Nr, Nc2 = Nc;
+    if (!do_swt) { if (ndim > 1) Nr2 = Nr/2; Nc2 = Nc/2; }
     for (int i = 0; i < nlevels; i++) {
-        res += cublasSasum(Nr2*Nc2, d_coeffs[3*i+1], 1);
-        res += cublasSasum(Nr2*Nc2, d_coeffs[3*i+2], 1);
-        res += cublasSasum(Nr2*Nc2, d_coeffs[3*i+3], 1);
-        if (!do_swt) { Nr2 /= 2; Nc2 /= 2; }
+        if (ndim == 2) { // 2D
+            res += cublasSasum(Nr2*Nc2, d_coeffs[3*i+1], 1);
+            res += cublasSasum(Nr2*Nc2, d_coeffs[3*i+2], 1);
+            res += cublasSasum(Nr2*Nc2, d_coeffs[3*i+3], 1);
+        }
+        else { // 1D
+            res += cublasSasum(Nr2*Nc2, d_coeffs[i+1], 1);
+        }
+        if (!do_swt) { if (ndim > 1) Nr2 /= 2; Nc2 /= 2; }
     }
-    int nels = ((do_swt) ? (Nr2*Nc2) : (Nr2*Nc2*4));
+    int nels;
+    if (ndim == 2) nels = ((do_swt) ? (Nr2*Nc2) : (Nr2*Nc2*4));
+    else nels = ((do_swt) ? (Nr2*Nc2) : (Nr2*Nc2*2));
     res += cublasSasum(nels, d_coeffs[0], 1);
     return res;
 }
@@ -302,9 +354,15 @@ int Wavelets::get_coeff(float* coeff, int num) {
     }
     int Nr2 = Nr, Nc2 = Nc;
     if (!do_swt) {
-        int factor = ((num == 0) ? (w_ipow2(nlevels)) : (w_ipow2((num-1)/3 +1)));
-        Nr2 /= factor;
-        Nc2 /= factor;
+        if (ndim == 2) {
+            int factor = ((num == 0) ? (w_ipow2(nlevels)) : (w_ipow2((num-1)/3 +1)));
+            Nr2 /= factor;
+            Nc2 /= factor;
+        }
+        else { // (ndim == 1)
+            int factor = ((num == 0) ? (w_ipow2(nlevels)) : (w_ipow2((num-1) +1)));
+            Nc2 /= factor;
+        }
     }
     //~ printf("Retrieving %d (%d x %d)\n", num, Nr2, Nc2);
     cudaMemcpy(coeff, d_coeffs[num], Nr2*Nc2*sizeof(float), cudaMemcpyDeviceToHost);
