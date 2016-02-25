@@ -23,6 +23,11 @@ except ImportError:
     exit(1)
 
 
+# Logging
+logging.basicConfig(filename='results.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S', level=logging.DEBUG)
+# -----
+
+
 # See ppdwt/filters.h
 available_filters = [
     "haar",
@@ -97,7 +102,7 @@ available_filters = [
     "rbio4.4",
     "rbio5.5",
     "rbio6.8"]
-
+# ------
 
 def elapsed_ms(t0):
     return (time()-t0)*1e3
@@ -136,10 +141,9 @@ class ParametrizedTestCase(unittest.TestCase):
 
 
 
-class TestWavelet(ParametrizedTestCase):#(unittest.TestCase):
+class TestWavelet2D(ParametrizedTestCase):
 
     def setUp(self):
-        logging.basicConfig(filename='results.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S', level=logging.DEBUG)
         self.tol = 1e-3 # Maximum acceptable error wrt pywt for float32 precision
         self.data = lena()
         # Default arguments when testing only one wavelet
@@ -173,11 +177,6 @@ class TestWavelet(ParametrizedTestCase):#(unittest.TestCase):
             for i in range(levels):
                 D1, D2, D3 = Wpy[levels-i][0], Wpy[levels-i][1], Wpy[levels-i][2]
                 logging.info("%s Level %d %s" % ("-"*5, i+1, "-"*5))
-                if (W.wname == "haar"): # FIXME : in haar implementation, the detail coefficients are shifted
-                    tmp = D2
-                    D2 = D1
-                    D1 = tmp
-                # ----
                 maxerr = _calc_errors(D1, W_coeffs[i+1][0], "[det.H]")
                 self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the detail coefficients 1 at level %d (errmax = %e)" % (wname, i+1, maxerr))
                 maxerr = _calc_errors(D2, W_coeffs[i+1][1], "[det.V]")
@@ -229,27 +228,134 @@ class TestWavelet(ParametrizedTestCase):#(unittest.TestCase):
 
 
 
+class TestWavelet1D(ParametrizedTestCase):
+
+    def setUp(self):
+        self.tol = 1e-3 # Maximum acceptable error wrt pywt for float32 precision
+        self.data = np.ascontiguousarray(lena()[0])
+        # Default arguments when testing only one wavelet
+        self.wname = "haar"
+        self.levels = 8
+        self.do_swt = 0
+        self.batched = 0
+
+
+    def compare_coeffs(self, W, Wpy, swt=False):
+        """
+        Compares the coefficients of pydwt to those of pywt.
+
+        W: pypwt.Wavelets instance
+        Wpy: pywt coefficients (wavedec or swt)
+        swt: boolean
+        """
+        wname = W.wname
+        # retrieve all coefficients from GPU
+        W_coeffs = W.coeffs
+
+        if not(swt): # standard DWT
+            levels = len(Wpy)-1
+            if (levels != W.levels):
+                err_msg = str("compare_coeffs(): pypwt instance has %d levels while pywt instance has %d levels" % (W.levels, levels))
+                logging.error(err_msg)
+                raise ValueError(err_msg)
+            A = Wpy[0]
+            maxerr = _calc_errors(A, W_coeffs[0], "[app]")
+            self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the approximation coefficients (errmax = %e)" % (wname, maxerr))
+            for i in range(levels):
+                D = Wpy[levels-i]
+                logging.info("%s Level %d %s" % ("-"*5, i+1, "-"*5))
+                maxerr = _calc_errors(D, W_coeffs[i+1], "[det]")
+                self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the detail coefficients at level %d (errmax = %e)" % (wname, i+1, maxerr))
+
+        else: # SWT
+            levels = len(Wpy)
+            if (levels != W.levels):
+                err_msg = str("compare_coeffs(): pypwt instance has %d levels while pywt instance has %d levels" % (W.levels, levels))
+                logging.error(err_msg)
+                raise ValueError(err_msg)
+            for i in range(levels):
+                A, D = Wpy[levels-1-i][0], Wpy[levels-1-i][1]
+                logging.info("%s Level %d %s" % ("-"*5, i+1, "-"*5))
+                _calc_errors(D, W_coeffs[i+1], "[det]")
+
+
+    def test_wavelet(self):
+        if self.param is None:
+            wname = self.wname
+            levels = self.levels
+            do_swt = self.do_swt
+        else:
+            if len(self.param) < 4: raise ValueError("TestWavelet1D.test_wavelet() : params are (wname, levels, do_swt, data)")
+            wname = self.param[0]
+            levels = self.param[1]
+            do_swt = self.param[2]
+            self.data = self.param[3]
+        if self.data.ndim == 2:
+            self.batched = 1
+            logging.warning("pywt does not support batched 1D transform. Only the first line of the input image will be used for the comparisons")
+
+        logging.info("%s Running test for %s, %d levels %s" % ("-"*10, wname, levels, "-"*10))
+        logging.info("SWT is %s" % ((["OFF", "ON"])[do_swt]))
+        logging.info("computing Wavelets from pypwt")
+        W = Wavelets(self.data, wname, levels, do_swt=do_swt, ndim=1) # 1D transform, possibly batched
+        t0 = time()
+        W.forward()
+        logging.info("Wavelets.forward() took %.3f ms" % elapsed_ms(t0))
+
+        logging.info("computing Wavelets from pywt")
+        t0 = time()
+        data_for_pywt = self.data if not(self.batched) else np.ascontiguousarray(self.data[0]) # see warning
+        if not(do_swt):
+            Wpy = pywt.wavedec(data_for_pywt, wname, mode="per", level=levels)
+        else:
+            Wpy = pywt.swt(data_for_pywt, wname, levels)
+        logging.info("pywt took %.3f ms" % elapsed_ms(t0))
+
+        self.compare_coeffs(W, Wpy, swt=bool(do_swt))
+
+
 
 
 
 
 def test_suite_all_wavelets():
-    print("Testing all the %d available filters" % len(available_filters))
+    print("Testing all the %d available filters [2D]" % len(available_filters))
     testSuite = unittest.TestSuite()
     maxlev = 2 # beware of filter size reducing the possible number of levels
     for wname in available_filters:
-        testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=(wname, 2, 0)))
+        testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet2D, param=(wname, 2, 0)))
     return testSuite
 
 
-def test_suite_wavelets():
+def test_suite_wavelet2D():
     testSuite = unittest.TestSuite()
-    testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=("haar", 8, 0)))
-    #~ testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=("rbio3.1", 3, 0)))
+    testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet2D, param=("haar", 8, 0)))
+    #~ testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet2D, param=("rbio3.1", 3, 0)))
     return testSuite
+
+
+def test_suite_wavelet1D():
+    testSuite = unittest.TestSuite()
+    data = np.ascontiguousarray(lena()[0])
+    testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet1D, param=("haar", 8, 0, data)))
+    return testSuite
+
+
+
+def test_suite_all_wavelets1D():
+    print("Testing all the %d available filters [1D]" % len(available_filters))
+    testSuite = unittest.TestSuite()
+    maxlev = 2 # beware of filter size reducing the possible number of levels
+    data = np.ascontiguousarray(lena()[0])
+    for wname in available_filters:
+        testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet1D, param=(wname, 2, 0, data)))
+    return testSuite
+
+
+
 
 if __name__ == '__main__':
-    #~ mysuite = test_suite_wavelets()
+    #~ mysuite = test_suite_wavelet2D()
     mysuite = test_suite_all_wavelets()
     runner = unittest.TextTestRunner()
     runner.run(mysuite)

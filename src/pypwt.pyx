@@ -76,6 +76,7 @@ cdef class Wavelets:
     cdef readonly int ndim
     cdef list _coeffs
     cdef tuple shape
+    cdef readonly int batched1d
 
 
     def __cinit__(self,
@@ -88,12 +89,20 @@ cdef class Wavelets:
                     int ndim = 2
                   ):
 
-        if img.ndim > 2:
-            raise NotImplementedError("Wavelets(): Only 1D and 2D transforms are supported for now")
         img = self._checkarray(img)
 
-        self.Nr = img.shape[0]
-        self.Nc = img.shape[1] if img.ndim > 1 else 1
+        # We can have ndim != img.ndim, which means batched 1D transform
+        self.batched1d = 0
+        if img.ndim == 2:
+            self.Nr = img.shape[0]
+            self.Nc = img.shape[1]
+            if (img.ndim != ndim): self.batched1d = 1
+        elif img.ndim == 1: # For 1D, make Nr = 1 and Nc = img.shape[0] for a contiguous C array
+            self.Nr = 1
+            self.Nc = img.shape[0]
+        else:
+            raise NotImplementedError("Wavelets(): Only 1D and 2D transforms are supported for now")
+
         # for ND
         shp = []
         for i in range(img.ndim):
@@ -114,7 +123,7 @@ cdef class Wavelets:
         self.w = new C_Wavelets(<float*> np.PyArray_DATA(img),
                                 self.Nr, self.Nc,
                                 self._wname, self.levels,
-                                1, self.do_separable, self.do_cycle_spinning, self.do_swt, self.ndim)
+                                1, self.do_separable, self.do_cycle_spinning, self.do_swt, ndim)
         # Retrieve the possibly updated attributes after the C++ initialization
         self.levels = self.w.nlevels
         self.hlen = self.w.hlen
@@ -127,22 +136,23 @@ cdef class Wavelets:
         Nr2 = self.Nr
         Nc2 = self.Nc
         _factor = 2**self.levels if (self.do_swt == 0) else 1
-        if (ndim == 2): # 2D
+        if (self.ndim == 2) and not(self.batched1d): # 2D
             self._coeffs.append(np.zeros((Nr2//_factor, Nc2//_factor), dtype=np.float32))
             for i in range(self.levels):
                 ahvd = []
                 if self.do_swt == 0:
-                    Nr2 = Nr2//2
+                    if not(self.batched1d): Nr2 = Nr2//2
                     Nc2 = Nc2//2
                 for i in range(3):
                     ahvd.append(np.zeros((Nr2, Nc2), dtype=np.float32))
                 self._coeffs.append(ahvd)
-        else: # 1D
-            self._coeffs.append(np.zeros((Nr2, Nc2//_factor), dtype=np.float32))
+        else: # (batched) 1D
+            _shp = (Nc2//_factor, ) if self.ndim == 1 else (Nr2, Nc2//_factor)
+            self._coeffs.append(np.zeros(_shp, dtype=np.float32))
             for i in range(self.levels):
                 if self.do_swt == 0: Nc2 = Nc2//2
-                self._coeffs.append(np.zeros((Nr2, Nc2), dtype=np.float32))
-
+                _shp = (Nc2,) if self.ndim == 1 else (Nr2, Nc2)
+                self._coeffs.append(np.zeros(_shp, dtype=np.float32))
 
 
     def info(self):
@@ -174,7 +184,7 @@ cdef class Wavelets:
         return res
 
 
-    def coeff_only(self, int num): # TODO : handle a (level, type) syntax ?
+    def coeff_only(self, int num):
         """
         Get only the coeff "num" from the C++ class instance.
         You should use it if you know that you will access only one coeff,
@@ -188,11 +198,11 @@ cdef class Wavelets:
         if num == 0:
             coeff_ref = self._coeffs[0]
         else:
-            if (self.ndim == 2):
+            if (self.ndim == 2) and not(self.batched1d):
                 curr_level = (num-1)//3 +1
                 curr_coeff = (num-1)%3
                 coeff_ref = self._coeffs[curr_level][curr_coeff]
-            else: # 1D
+            else: # (batched) 1D
                 coeff_ref = self._coeffs[num]
 
         c_dstbuf = <float*> np.PyArray_DATA(coeff_ref)
@@ -212,7 +222,7 @@ cdef class Wavelets:
         """
 
         self.coeff_only(0)
-        if self.ndim == 2:
+        if self.ndim == 2 and not(self.batched1d):
             i_end = 3*self.levels
         else: # 1D
             i_end = self.levels
