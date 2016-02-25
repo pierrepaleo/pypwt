@@ -12,12 +12,14 @@ cdef extern from "../ppdwt/wt.h":
         int Nc
         int nlevels
         int do_cycle_spinning
+        int do_separable
         int hlen
 
         # Methods
         # -------
         C_Wavelets()
-        C_Wavelets(float*, int, int, const char*, int, int, int, int, int)
+        # Wavelets(float* img, int Nr, int Nc, const char* wname, int levels, int memisonhost=1, int do_separable = 1, int do_cycle_spinning = 0, int do_swt = 0, int ndim = 2);
+        C_Wavelets(float*, int, int, const char*, int, int, int, int, int, int)
 #~         ~C_Wavelets()
         void forward()
         void soft_threshold(float, int)
@@ -71,6 +73,7 @@ cdef class Wavelets:
     cdef int hlen
     cdef readonly int do_swt
     cdef readonly int do_separable
+    cdef readonly int ndim
     cdef list _coeffs
     cdef tuple shape
 
@@ -82,14 +85,15 @@ cdef class Wavelets:
                     int do_separable = 1,
                     int do_cycle_spinning = 0,
                     int do_swt = 0,
+                    int ndim = 0
                   ):
 
-        if img.ndim != 2: # TODO
-            raise NotImplementedError("Wavelets(): Only 2D transform is supported for now")
+        if img.ndim > 2:
+            raise NotImplementedError("Wavelets(): Only 1D and 2D transforms are supported for now")
         img = self._checkarray(img)
 
         self.Nr = img.shape[0]
-        self.Nc = img.shape[1]
+        self.Nc = img.shape[1] if img.ndim > 1 else 1
         # for ND
         shp = []
         for i in range(img.ndim):
@@ -104,33 +108,41 @@ cdef class Wavelets:
         self.do_separable = do_separable
         self.do_cycle_spinning = do_cycle_spinning
         self.do_swt = do_swt
+        self.ndim = ndim
 
         # Build the C++ Wavelet object
-        #~ Wavelets(float* img, int Nr, int Nc, const char* wname, int levels, int memisonhost=1, int do_separable = 1, int do_cycle_spinning = 0, int do_swt = 0);
-
         self.w = new C_Wavelets(<float*> np.PyArray_DATA(img),
                                 self.Nr, self.Nc,
                                 self._wname, self.levels,
-                                1, self.do_separable, self.do_cycle_spinning, self.do_swt)
+                                1, self.do_separable, self.do_cycle_spinning, self.do_swt, self.ndim)
         # Retrieve the possibly updated attributes after the C++ initialization
         self.levels = self.w.nlevels
         self.hlen = self.w.hlen
+        self.do_separable = self.w.do_separable
 
         # Initialize the python coefficients
-        # [A, [H1, V1, D1], [H2, V2, D2], ... ]
+        # for 2D : [A, [H1, V1, D1], [H2, V2, D2], ... ]
+        # for 1D : [A, D1, ... Dn]
         self._coeffs = []
         Nr2 = self.Nr
         Nc2 = self.Nc
         _factor = 2**self.levels if (self.do_swt == 0) else 1
-        self._coeffs.append(np.zeros((Nr2//_factor, Nc2//_factor), dtype=np.float32))
-        for i in range(self.levels):
-            ahvd = []
-            if self.do_swt == 0:
-                Nr2 = Nr2//2
-                Nc2 = Nc2//2
-            for i in range(3):
-                ahvd.append(np.zeros((Nr2, Nc2), dtype=np.float32))
-            self._coeffs.append(ahvd)
+        if (ndim == 2): # 2D
+            self._coeffs.append(np.zeros((Nr2//_factor, Nc2//_factor), dtype=np.float32))
+            for i in range(self.levels):
+                ahvd = []
+                if self.do_swt == 0:
+                    Nr2 = Nr2//2
+                    Nc2 = Nc2//2
+                for i in range(3):
+                    ahvd.append(np.zeros((Nr2, Nc2), dtype=np.float32))
+                self._coeffs.append(ahvd)
+        else: # 1D
+            self._coeffs.append(np.zeros((Nr2, Nc2//_factor), dtype=np.float32))
+            for i in range(self.levels):
+                if self.do_swt == 0: Nc2 = Nc2//2
+                self._coeffs.append(np.zeros((Nr2, Nc2), dtype=np.float32))
+
 
 
     def info(self):
@@ -170,14 +182,19 @@ cdef class Wavelets:
 
         num : int
             Number of the coefficient. The indexing is as follows :
-            [0: A, 1: H1, 2: V1, 3: D1,  4: H2, ...]
+            2D : [0: A, 1: H1, 2: V1, 3: D1,  4: H2, ...]
+            1D : [0: A, 1: D1, 2: D2, ...]
         """
         if num == 0:
             coeff_ref = self._coeffs[0]
         else:
-            curr_level = (num-1)//3 +1
-            curr_coeff = (num-1)%3
-            coeff_ref = self._coeffs[curr_level][curr_coeff]
+            if (self.ndim == 2):
+                curr_level = (num-1)//3 +1
+                curr_coeff = (num-1)%3
+                coeff_ref = self._coeffs[curr_level][curr_coeff]
+            else: # 1D
+                coeff_ref = self._coeffs[num]
+
         c_dstbuf = <float*> np.PyArray_DATA(coeff_ref)
         numc = self.w.get_coeff(c_dstbuf, num)
         if numc != coeff_ref.size:
@@ -195,7 +212,11 @@ cdef class Wavelets:
         """
 
         self.coeff_only(0)
-        for cnt in range(1, 3*self.levels+1):
+        if self.ndim == 2:
+            i_end = 3*self.levels
+        else: # 1D
+            i_end = self.levels
+        for cnt in range(1, i_end + 1):
             self.coeff_only(cnt)
         return self._coeffs
 
