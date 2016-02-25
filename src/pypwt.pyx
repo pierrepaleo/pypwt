@@ -85,7 +85,7 @@ cdef class Wavelets:
                     int do_separable = 1,
                     int do_cycle_spinning = 0,
                     int do_swt = 0,
-                    int ndim = 0
+                    int ndim = 2
                   ):
 
         if img.ndim > 2:
@@ -108,7 +108,7 @@ cdef class Wavelets:
         self.do_separable = do_separable
         self.do_cycle_spinning = do_cycle_spinning
         self.do_swt = do_swt
-        self.ndim = ndim
+        self.ndim = img.ndim
 
         # Build the C++ Wavelet object
         self.w = new C_Wavelets(<float*> np.PyArray_DATA(img),
