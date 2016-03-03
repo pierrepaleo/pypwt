@@ -581,13 +581,5 @@ int Wavelets::add_wavelet2(Wavelets* W, float alpha) {
 
 
 
-Wavelets external_copy(Wavelets W) {
-    Wavelets W_new(W);
-    return W_new;
-}
 
-
-void add1(float** d1, float** d2) {
-    w_add_coeffs(d1, d2, 512, 512, 3, 0, 1.0f);
-}
 

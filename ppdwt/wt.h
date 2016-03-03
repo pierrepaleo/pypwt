@@ -70,8 +70,5 @@ class Wavelets {
 };
 
 
-Wavelets external_copy(Wavelets W);
-void add1(float** d1, float** d2);
-
 #endif
 
