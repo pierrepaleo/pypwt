@@ -1,6 +1,7 @@
 import numpy as np
 cimport numpy as np
 assert sizeof(int) == sizeof(np.int32_t)
+from copy import deepcopy
 
 
 cdef extern from "../ppdwt/wt.h":
@@ -14,14 +15,13 @@ cdef extern from "../ppdwt/wt.h":
         int do_cycle_spinning
         int do_separable
         int hlen
-        float* d_image # test
 
         # Methods
         # -------
         C_Wavelets()
         # Wavelets(float* img, int Nr, int Nc, const char* wname, int levels, int memisonhost=1, int do_separable = 1, int do_cycle_spinning = 0, int do_swt = 0, int ndim = 2);
         C_Wavelets(float*, int, int, const char*, int, int, int, int, int, int)
-        C_Wavelets(C_Wavelets*) # test
+        C_Wavelets(C_Wavelets) # copy constructor
 #~         ~C_Wavelets()
         void forward()
         void soft_threshold(float, int)
@@ -35,7 +35,7 @@ cdef extern from "../ppdwt/wt.h":
         void print_informations()
         int get_coeff(float*, int)
         void set_image(float*, int)
-        int add_wavelet(C_Wavelets*, float)
+        int add_wavelet(C_Wavelets, float)
 
 cdef class Wavelets:
     """
@@ -91,7 +91,28 @@ cdef class Wavelets:
                     int do_cycle_spinning = 0,
                     int do_swt = 0,
                     int ndim = 2,
+                    Wavelets copy = None
                   ):
+
+        cdef C_Wavelets _w# cdef statement is only allowed here
+        if copy: # Wavelets instanciated from another class
+            _w = (copy.w)[0]
+            self.w = new C_Wavelets(_w) # Call the C++ copy constructor
+            # Now, copy the other attributes
+            self.wname = copy.wname
+            self._wname = copy._wname
+            self.levels = copy.levels
+            self.hlen = copy.hlen
+            self.do_separable = copy.do_separable
+            self.do_cycle_spinning = copy.do_cycle_spinning
+            self.do_swt = copy.do_swt
+            self.ndim = copy.ndim
+            self.Nr, self.Nc = copy.Nr, copy.Nc
+            self.shape = copy.shape
+            self.batched1d = copy.batched1d
+            self._coeffs = deepcopy(copy._coeffs)
+            return
+
 
         img = self._checkarray(img)
 
@@ -374,31 +395,16 @@ cdef class Wavelets:
         return self.w.norm2sq()
 
 
-    def add_wavelet(self, W, alpha=1.0):
+    def add_wavelet(self, Wavelets W, alpha=1.0):
         """
         Adds wavelets coefficients to the current wavelets coefficients.
 
         W: Wavelets instance
+        alpha: coefficient multiplying the coefficients of W (optional, default is 1)
         """
 
-#~         cdef c_alpha = alpha
-#~         cdef void* c_w = W.w
-#~         return self.w.add_wavelet(c_w, alpha)
-
-
-
-    def copy(self):
-        w2 = new C_Wavelets(<C_Wavelets *>self.w)
-
-
-
-#~         cdef Wavelets w2
-#~         arr = np.zeros((W.Nr, W.Nc))
-#~         w2 = Wavelets(arr, "haar", 3)
-#~         w2.Nr = W.Nr
-#~         w2.Nc = W.Nc
-#~         return w2
-
+        cdef float c_alpha = 1.0
+        self.w.add_wavelet((W.w)[0], c_alpha)
 
 
 

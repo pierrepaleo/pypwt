@@ -66,10 +66,12 @@ class Wavelets {
     int set_filters_inverse(float* filter1, float* filter2, float* filter3 = NULL, float* filter4 = NULL);
 
     int add_wavelet(Wavelets W, float alpha=1.0f);
+    int add_wavelet2(Wavelets* W, float alpha=1.0f);
 };
 
 
 Wavelets external_copy(Wavelets W);
+void add1(float** d1, float** d2);
 
 #endif
 

@@ -575,7 +575,9 @@ int Wavelets::add_wavelet(Wavelets W, float alpha) {
 }
 
 
-
+int Wavelets::add_wavelet2(Wavelets* W, float alpha) {
+    return add_wavelet(*W, alpha);
+}
 
 
 
@@ -585,14 +587,7 @@ Wavelets external_copy(Wavelets W) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
+void add1(float** d1, float** d2) {
+    w_add_coeffs(d1, d2, 512, 512, 3, 0, 1.0f);
+}
 
