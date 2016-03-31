@@ -24,8 +24,8 @@ cdef extern from "../ppdwt/wt.h":
         C_Wavelets(C_Wavelets) # copy constructor
 #~         ~C_Wavelets()
         void forward()
-        void soft_threshold(float, int)
-        void hard_threshold(float, int)
+        void soft_threshold(float, int, int)
+        void hard_threshold(float, int, int)
         void shrink(float, int)
         void circshift(int, int, int)
         void inverse()
@@ -311,7 +311,7 @@ cdef class Wavelets:
 
 
 
-    def soft_threshold(self, float beta, int do_threshold_appcoeffs = 1):
+    def soft_threshold(self, float beta, int do_threshold_appcoeffs = 0, int normalize = 0):
         """
         Soft threshold the wavelets coefficients.
         The soft thresholding is defined by
@@ -329,10 +329,11 @@ cdef class Wavelets:
         """
         cdef float c_beta = beta
         cdef int c_dt = do_threshold_appcoeffs
-        self.w.soft_threshold(c_beta, c_dt)
+        cdef int c_n = normalize
+        self.w.soft_threshold(c_beta, c_dt, c_n)
 
 
-    def hard_threshold(self, float beta, int do_threshold_appcoeffs = 1):
+    def hard_threshold(self, float beta, int do_threshold_appcoeffs = 0, int normalize = 0):
         """
         Hard threshold the wavelets coefficients.
         The hard thresholding is defined by
@@ -348,7 +349,8 @@ cdef class Wavelets:
         """
         cdef float c_beta = beta
         cdef int c_dt = do_threshold_appcoeffs
-        self.w.hard_threshold(c_beta, c_dt)
+        cdef int c_n = normalize
+        self.w.hard_threshold(c_beta, c_dt, c_n)
 
 
     def shrink(self, float beta, int do_threshold_appcoeffs = 1):
