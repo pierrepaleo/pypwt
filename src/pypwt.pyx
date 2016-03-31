@@ -35,6 +35,7 @@ cdef extern from "../ppdwt/wt.h":
         void print_informations()
         int get_coeff(float*, int)
         void set_image(float*, int)
+        void set_coeff(float*, int, int)
         int add_wavelet(C_Wavelets, float)
 
 cdef class Wavelets:
@@ -407,9 +408,27 @@ cdef class Wavelets:
         self.w.add_wavelet((W.w)[0], c_alpha)
 
 
+    def set_coeff(self, coeff, num, check=False):
+        """
+        Sets the Wavelet coefficient "num".
+        See coeff_only() documentation for more information on how "num" is linked to the coefficients.
+
+        coeff: numpy.ndarray
+            2D array containing the coefficient
+        num: int
+            number of the coefficient
+        check: bool
+            if True, the size of the provided coefficient is checked against the target.
+            This implies an extra device->host memory transfer.
+        """
+
+        if check:
+            dcoeff = self.coeff_only(num)
+            if dcoeff.shape[0] != coeff.shape[0] or dcoeff.shape[1] != coeff.shape[1]:
+                raise ValueError("set_coefInvalid coefficient shape : expected %s, got %s" % (str(dcoeff.shape), str(coeff.shape)))
 
 
-
+        self.w.set_coeff(<float*> np.PyArray_DATA(coeff), num, 0)
 
 
 

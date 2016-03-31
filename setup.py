@@ -149,7 +149,7 @@ class custom_build_ext(build_ext):
 setup(name='pypwt',
       # random metadata. there's more you can supply
       author='Pierre Paleo',
-      version='0.3',
+      version='0.4',
 
       ext_modules = [ext],
 
