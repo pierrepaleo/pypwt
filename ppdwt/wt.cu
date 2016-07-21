@@ -235,8 +235,13 @@ Wavelets::~Wavelets(void) {
 }
 
 /// Method : forward
-int Wavelets::forward(void) {
+float Wavelets::forward(void) {
     int res = 0;
+    cudaEvent_t tstart, tstop;
+    cudaEventCreate(&tstart); cudaEventCreate(&tstop);
+    float elapsedTime;
+    cudaEventRecord(tstart, 0);
+
     if (do_cycle_spinning) {
         current_shift_r = rand() % Nr;
         current_shift_c = rand() % Nc;
@@ -265,7 +270,12 @@ int Wavelets::forward(void) {
     // else: not implemented yet
 
     state = W_FORWARD;
-    return res;
+    //~ return res;
+
+    cudaEventRecord(tstop, 0); cudaEventSynchronize(tstop); cudaEventElapsedTime(&elapsedTime, tstart, tstop);
+    return elapsedTime;
+
+
 }
 /// Method : inverse
 void Wavelets::inverse(void) {
