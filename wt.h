@@ -55,7 +55,7 @@ class Wavelets {
     void hard_threshold(float beta, int do_thresh_appcoeffs = 0, int normalize = 0);
     void shrink(float beta, int do_thresh_appcoeffs = 1);
     void circshift(int sr, int sc, int inplace = 1);
-    void inverse();
+    float inverse();
     float norm2sq();
     float norm1();
     int get_image(float* img);

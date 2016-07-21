@@ -278,10 +278,17 @@ float Wavelets::forward(void) {
 
 }
 /// Method : inverse
-void Wavelets::inverse(void) {
+float Wavelets::inverse(void) {
+
+    int res = 0;
+    cudaEvent_t tstart, tstop;
+    cudaEventCreate(&tstart); cudaEventCreate(&tstop);
+    float elapsedTime;
+    cudaEventRecord(tstart, 0);
+
     if (state == W_INVERSE) { // TODO: what to do in this case ? Force re-compute, or abort ?
         puts("Warning: W.inverse() has already been run. Inverse is available in W.get_image()");
-        return;
+        return -1.0f;
     }
     if (ndim == 1) {
         if ((hlen == 2) && (!do_swt)) haar_inverse1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
@@ -307,6 +314,10 @@ void Wavelets::inverse(void) {
     // else: not implemented yet
     if (do_cycle_spinning) circshift(-current_shift_r, -current_shift_c, 1);
     state = W_INVERSE;
+
+    cudaEventRecord(tstop, 0); cudaEventSynchronize(tstop); cudaEventElapsedTime(&elapsedTime, tstart, tstop);
+    return elapsedTime;
+
 }
 
 /// Method : soft thresholding (L1 proximal)
