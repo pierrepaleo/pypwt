@@ -28,7 +28,7 @@ cdef extern from "../ppdwt/wt.h":
         void hard_threshold(float, int, int)
         void shrink(float, int)
         void circshift(int, int, int)
-        void inverse()
+        float inverse()
         float norm2sq()
         float norm1()
         int get_image(float*)
@@ -307,7 +307,7 @@ cdef class Wavelets:
         once ``Wavelets.inverse()`` has been performed once. This mechanism is reset as soon as ``Wavelets.forward()``
         is performed.
         """
-        self.w.inverse()
+        return self.w.inverse()
 
 
 
