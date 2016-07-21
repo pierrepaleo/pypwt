@@ -50,7 +50,7 @@ class Wavelets {
 
     // Methods
     // -------
-    void forward();
+    int forward();
     void soft_threshold(float beta, int do_thresh_appcoeffs = 0, int normalize = 0);
     void hard_threshold(float beta, int do_thresh_appcoeffs = 0, int normalize = 0);
     void shrink(float beta, int do_thresh_appcoeffs = 1);
