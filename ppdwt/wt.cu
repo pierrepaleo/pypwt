@@ -2,12 +2,8 @@
  *
  * TODO :
  *
- *  - W.coeffs[0] is over-written after an inversion.               (FIXME)
- *      so if  W.inverse() is run twice : invalid inverse.
- *      => Implement W.state ?
- *  - Allow both separable and non-separable without re-compiling   (OK)
- *  - User can choose the target device                             (TODO)
- *  - User can provide non-separable filters                        (TODO)
+ *  - ISWT : only appcoeffs at last scale are used (cf Matlab) => Don't store the other appcoeffs ?
+ *  - User can choose the target device
  *  - Doc ! (get_coeffs, ...)
  *
  */
@@ -155,8 +151,8 @@ Wavelets::Wavelets(
     this->d_coeffs = d_coeffs_new;
 
     if (ndim == 1 && do_separable == 0) {
-        puts("Warning: requestred 1D DWT, which is incompatible with non-separable transform.");
-        puts("Forcing do_separable = 1");
+        puts("Warning: 1D DWT was requestred, which is incompatible with non-separable transform.");
+        puts("Ignoring the do_separable option.");
         do_separable = 1;
     }
     // Filters
@@ -176,7 +172,7 @@ Wavelets::Wavelets(
     else N = Nc;
     int wmaxlev = w_ilog2(N/hlen);
     if (levels > wmaxlev) {
-        printf("Warning: required level (%d) is greater than the maximum possible level for %s (%d).\n", nlevels, wname, wmaxlev);
+        printf("Warning: required level (%d) is greater than the maximum possible level for %s (%d) on a %dx%d image.\n", nlevels, wname, wmaxlev, Nc, Nr);
         printf("Forcing nlevels = %d\n", wmaxlev);
         nlevels = wmaxlev;
     }
@@ -239,35 +235,37 @@ Wavelets::~Wavelets(void) {
 }
 
 /// Method : forward
-void Wavelets::forward(void) {
+int Wavelets::forward(void) {
+    int res = 0;
     if (do_cycle_spinning) {
         current_shift_r = rand() % Nr;
         current_shift_c = rand() % Nc;
         circshift(current_shift_r, current_shift_c, 1);
     }
     if (ndim == 1) {
-        if ((hlen == 2) && (!do_swt)) haar_forward1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
+        if ((hlen == 2) && (!do_swt)) res = haar_forward1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
         else {
-            if (!do_swt) w_forward_separable_1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
-            else w_forward_swt_separable_1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            if (!do_swt) res = w_forward_separable_1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+            else res = w_forward_swt_separable_1d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
         }
     }
     else if (ndim == 2) {
-        if ((hlen == 2) && (!do_swt)) haar_forward2d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
+        if ((hlen == 2) && (!do_swt)) res = haar_forward2d(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels);
         else {
             if (do_separable) {
-                if (!do_swt) w_forward_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
-                else w_forward_swt_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+                if (!do_swt) res = w_forward_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+                else res = w_forward_swt_separable(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
             }
             else {
-                if (!do_swt) w_forward(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
-                else w_forward_swt(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+                if (!do_swt) res = w_forward(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
+                else res = w_forward_swt(d_image, d_coeffs, d_tmp, Nr, Nc, nlevels, hlen);
             }
         }
     }
     // else: not implemented yet
 
     state = W_FORWARD;
+    return res;
 }
 /// Method : inverse
 void Wavelets::inverse(void) {
