@@ -23,7 +23,7 @@ cdef extern from "../ppdwt/wt.h":
         C_Wavelets(float*, int, int, const char*, int, int, int, int, int, int)
         C_Wavelets(C_Wavelets) # copy constructor
 #~         ~C_Wavelets()
-        void forward()
+        float forward()
         void soft_threshold(float, int, int)
         void hard_threshold(float, int, int)
         void shrink(float, int)
@@ -293,7 +293,7 @@ cdef class Wavelets:
         if img is not None:
             img = self._checkarray(img, self.shape)
             self.w.set_image(<float*> np.PyArray_DATA(img), 0)
-        self.w.forward()
+        return self.w.forward()
 
 
     def inverse(self):
