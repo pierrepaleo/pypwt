@@ -89,7 +89,7 @@ except AttributeError:
 
 ext = Extension('pypwt',
                 #~ sources=['ppdwt/wt.cu', 'ppdwt/common.cu', 'src/pypwt.pyx'],
-                sources = ['pdwt/wt.cu', 'pdwt/common.cu', 'pdwt/utils.cu', 'pdwt/separable.cu', 'pdwt/nonseparable.cu', 'pdwt/haar.cu', 'pdwt/filters.cpp', 'src/pypwt.pyx'],
+                sources = ['pdwt/src/wt.cu', 'pdwt/src/common.cu', 'pdwt/src/utils.cu', 'pdwt/src/separable.cu', 'pdwt/src/nonseparable.cu', 'pdwt/src/haar.cu', 'pdwt/src/filters.cpp', 'src/pypwt.pyx'],
                 #~ library_dirs=[CUDA['lib64']],
                 libraries=['cudart', 'cublas'],
                 language='c++',
@@ -98,7 +98,7 @@ ext = Extension('pypwt',
                 # we're only going to use certain compiler args with nvcc and not with gcc
                 # the implementation of this trick is in customize_compiler() below
                 extra_compile_args={'gcc': [],
-                                    'nvcc': ['-arch=sm_20', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
+                                    'nvcc': ['-arch=sm_30', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
                 include_dirs = [numpy_include, CUDA['include'], 'src'])
 
 
@@ -147,10 +147,11 @@ class custom_build_ext(build_ext):
         customize_compiler_for_nvcc(self.compiler)
         build_ext.build_extensions(self)
 
+
 setup(name='pypwt',
       # random metadata. there's more you can supply
       author='Pierre Paleo',
-      version='0.5',
+      version='0.5.2',
 
       ext_modules = [ext],
 

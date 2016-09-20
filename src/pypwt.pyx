@@ -2,6 +2,7 @@ import numpy as np
 cimport numpy as np
 assert sizeof(int) == sizeof(np.int32_t)
 from copy import deepcopy
+#~ from .version import version
 
 
 cdef extern from "../pdwt/wt.h":
@@ -439,9 +440,14 @@ cdef class Wavelets:
         self.w.set_coeff(<float*> np.PyArray_DATA(coeff), num, 0)
 
 
+    @staticmethod
+    def version():
+        """
+        Return the current version of the pywt library
 
-
-
+        This mechanism is not so elegant and will be replaced in the future
+        """
+        return "0.5.2"
 
 
 
