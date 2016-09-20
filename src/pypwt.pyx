@@ -4,17 +4,23 @@ assert sizeof(int) == sizeof(np.int32_t)
 from copy import deepcopy
 
 
-cdef extern from "../ppdwt/wt.h":
+cdef extern from "../pdwt/wt.h":
+
+    ctypedef struct w_info:
+        int ndims
+        int Nr
+        int Nc
+        int nlevels
+        int do_swt
+        int hlen
+
     cdef cppclass C_Wavelets "Wavelets":
 
         # C++ attributes should be declared here if we want to access them
         # -----------------------------------------------------------------
-        int Nr
-        int Nc
-        int nlevels
         int do_cycle_spinning
         int do_separable
-        int hlen
+        w_info winfos
 
         # Methods
         # -------
@@ -23,12 +29,12 @@ cdef extern from "../ppdwt/wt.h":
         C_Wavelets(float*, int, int, const char*, int, int, int, int, int, int)
         C_Wavelets(C_Wavelets) # copy constructor
 #~         ~C_Wavelets()
-        float forward()
+        void forward()
         void soft_threshold(float, int, int)
         void hard_threshold(float, int, int)
         void shrink(float, int)
         void circshift(int, int, int)
-        float inverse()
+        void inverse()
         float norm2sq()
         float norm1()
         int get_image(float*)
@@ -151,8 +157,8 @@ cdef class Wavelets:
                                 self._wname, self.levels,
                                 1, self.do_separable, self.do_cycle_spinning, self.do_swt, ndim)
         # Retrieve the possibly updated attributes after the C++ initialization
-        self.levels = self.w.nlevels
-        self.hlen = self.w.hlen
+        self.levels = self.w.winfos.nlevels
+        self.hlen = self.w.winfos.hlen
         self.do_separable = self.w.do_separable
 
         # Initialize the python coefficients
@@ -293,7 +299,7 @@ cdef class Wavelets:
         if img is not None:
             img = self._checkarray(img, self.shape)
             self.w.set_image(<float*> np.PyArray_DATA(img), 0)
-        return self.w.forward()
+        self.w.forward()
 
 
     def inverse(self):
@@ -307,7 +313,7 @@ cdef class Wavelets:
         once ``Wavelets.inverse()`` has been performed once. This mechanism is reset as soon as ``Wavelets.forward()``
         is performed.
         """
-        return self.w.inverse()
+        self.w.inverse()
 
 
 
