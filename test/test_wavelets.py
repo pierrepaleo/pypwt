@@ -355,6 +355,9 @@ def test_suite_all_wavelets1D():
 
 
 if __name__ == '__main__':
+    v_str = str("Testing version %s" % (Wavelets.version()))
+    logging.info(v_str)
+    print(v_str)
     #~ mysuite = test_suite_wavelet2D()
     mysuite = test_suite_all_wavelets()
     runner = unittest.TextTestRunner()

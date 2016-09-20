@@ -5,7 +5,7 @@ from copy import deepcopy
 #~ from .version import version
 
 
-cdef extern from "../pdwt/wt.h":
+cdef extern from "../pdwt/src/wt.h":
 
     ctypedef struct w_info:
         int ndims
