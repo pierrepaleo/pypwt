@@ -454,7 +454,7 @@ cdef class Wavelets:
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "0.5.2"
+        return "0.6"
 
 
 
