@@ -438,6 +438,8 @@ cdef class Wavelets:
             This implies an extra device->host memory transfer.
         """
 
+        coeff = self._checkarray(coeff)
+        # TODO: more elegant way for checking correct shape
         if check:
             dcoeff = self.coeff_only(num)
             if dcoeff.shape[0] != coeff.shape[0] or dcoeff.shape[1] != coeff.shape[1]:
@@ -454,7 +456,7 @@ cdef class Wavelets:
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "0.6"
+        return "0.6.1"
 
 
 
