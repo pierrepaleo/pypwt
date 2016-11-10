@@ -77,6 +77,7 @@ cdef class Wavelets:
     cdef C_Wavelets* w # pointer to the C Wavelet object
     cdef readonly int Nr
     cdef readonly int Nc
+    cdef readonly list sizes
     cdef readonly char* _wname
     cdef readonly str wname
     cdef readonly int levels
@@ -88,7 +89,7 @@ cdef class Wavelets:
     cdef list _coeffs
     cdef tuple shape
     cdef readonly int batched1d
-    cdef readonly str adr
+#~     cdef readonly str adr
 
 
     def __cinit__(self,
@@ -161,13 +162,30 @@ cdef class Wavelets:
         self.levels = self.w.winfos.nlevels
         self.hlen = self.w.winfos.hlen
         self.do_separable = self.w.do_separable
+        # Image size at each level
+        self.sizes = self._compute_sizes()
 
         # Initialize the python coefficients
         # for 2D : [A, [H1, V1, D1], [H2, V2, D2], ... ]
         # for 1D : [A, D1, ... Dn]
+        # ------------------------------------------------
         self._coeffs = []
-        Nr2 = self.Nr
-        Nc2 = self.Nc
+        # App coeff
+        self._coeffs.append(np.zeros(self.sizes[-1], dtype=np.float32))
+
+        # Det coeffs
+        for i in range(self.levels):
+            # 1D
+            if (self.ndim < 2) or (self.batched1d):
+                self._coeffs.append(np.zeros((self.sizes[i]), dtype=np.float32))
+            # 2D
+            else:
+                ahvd = []
+                for j in range(3):
+                    ahvd.append(np.zeros(self.sizes[i], dtype=np.float32))
+                self._coeffs.append(ahvd)
+
+        """
         _factor = 2**self.levels if (self.do_swt == 0) else 1
         if (self.ndim == 2) and not(self.batched1d): # 2D
             self._coeffs.append(np.zeros((Nr2//_factor, Nc2//_factor), dtype=np.float32))
@@ -186,6 +204,7 @@ cdef class Wavelets:
                 if self.do_swt == 0: Nc2 = Nc2//2
                 _shp = (Nc2,) if self.ndim == 1 else (Nr2, Nc2)
                 self._coeffs.append(np.zeros(_shp, dtype=np.float32))
+        """
 
 
     def info(self):
@@ -214,6 +233,29 @@ cdef class Wavelets:
             for i in range(arr.ndim):
                 if arr.shape[i] != shp[i]:
                     raise ValueError("The image does not have the correct shape (expected %s, got %s)" % (str(shp), str(arr.shape)))
+        return res
+
+
+    @staticmethod
+    def div2(n):
+        """
+        Returns (N + (N%2))/2.
+        This is used for the computation of the image size at each scale.
+        """
+        return (n + (n & 1))//2
+
+
+    def _compute_sizes(self):
+        Nr = self.Nr
+        Nc = self.Nc
+        if self.do_swt:
+            # no subsampling
+            return [(Nr, Nc)]*self.levels
+        res = []
+        for i in range(self.levels):
+            Nc = self.div2(Nc)
+            if not(self.batched1d): Nr = self.div2(Nr)
+            res.append((Nr, Nc))
         return res
 
 
