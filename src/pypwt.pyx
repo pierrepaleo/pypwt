@@ -491,14 +491,14 @@ cdef class Wavelets:
         self.w.set_coeff(<float*> np.PyArray_DATA(coeff), num, 0)
 
 
-    @staticmethod
-    def version():
+    @classmethod
+    def version(cls):
         """
         Return the current version of the pywt library
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "0.6.2"
+        return "0.7.0"
 
 
 
