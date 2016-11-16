@@ -20,6 +20,7 @@ import numpy as np
 from time import time
 from testutils import available_filters
 
+
 try:
     import pywt
 except ImportError:
@@ -103,9 +104,9 @@ class TestWavelet(ParametrizedTestCase):
         # Maximum acceptable error wrt pywt for float32 precision.
         # As the transform are not scaled, the error increases with
         # the number of levels. Thus, self.tol is multiplied with 2**levels
-        self.tol = 3e-4
+        self.tol = 1e-4
         self.data = scipy_img
-        #~ logging.info("Data shape: %s" % str(self.data.shape))
+        self.do_pywt = False # use pywt when testing reconstruction (for benchmarking)
 
         # Default arguments when testing only one wavelet
         self.wname = "haar"
@@ -116,7 +117,7 @@ class TestWavelet(ParametrizedTestCase):
         # Bind names to methods
         self.tests = {
             "dwt2": self.dwt2,
-            #~ "idwt2": self.idwt2,
+            "idwt2": self.idwt2,
             #~ "swt2": self.swt2,
             #~ "iswt2": self.iswt2,
             #~ "dwt": self.dwt,
@@ -135,6 +136,7 @@ class TestWavelet(ParametrizedTestCase):
             param[2]: input data
             param[3]: what to do ("dwt2", "idwt2", "swt2", "iswt2", "dwt", "idwt", "swt", "iswt"
             param[4]: separable mode for pypwt (default is True)
+            param[5]: test-dependent extra parameters
         """
         if self.param is None:
             wname = self.wname
@@ -142,13 +144,22 @@ class TestWavelet(ParametrizedTestCase):
             data = self.data
             what = "dwt2"
             separable = 1
+            extra_args = None
         else:
-            wname = self.param[0]
-            levels = self.param[1]
-            data = self.param[2]
-            what = self.param[3]
-            separable = self.param[4]
+            wname = self.param["wname"]
+            levels = self.param["levels"]
+            data = self.param["data"]
+            what = self.param["what"]
+            separable = self.param["separable"]
+            extra_args = None
+            if "extra" in self.param.keys():
+                extra_args = self.param["extra"]
+                if "tol" in extra_args.keys(): self.tol = extra_args["tol"]
+                if "do_pywt" in extra_args.keys() and bool(extra_args["do_pywt"]): self.do_pywt = True
 
+        # FIXME: there is as issue with the "coif5" coefficients for PyWavelets <= 0.5
+        if ("i" not in what) and (pywt_ver > 0 and pywt_ver <= 0.5) and (wname == "coif5"):
+            self.skipTest("Skipping coif5 test for PyWavelets %s" %pywt_ver_full)
 
         # Force an appropriate value for levels
         levels = min(levels, int(np.log2(min(data.shape)//pywt.Wavelet(wname).dec_len)))
@@ -166,24 +177,6 @@ class TestWavelet(ParametrizedTestCase):
         logging.info("%s Testing %s%s with %s, %d levels %s" % ("-"*5, what, data.shape, wname, levels, "-"*5))
         self.tests[what](W, data, wname, levels)
 
-        """
-        logging.info("%s Testing %s with %s, %d levels %s" % ("-"*10, what, wname, levels, "-"*10))
-        logging.info("computing Wavelets from pypwt")
-        t0 = time()
-        W.forward()
-        logging.info("Wavelets.forward() took %.3f ms" % elapsed_ms(t0))
-        logging.info("computing Wavelets from pywt")
-        t0 = time()
-        if not(do_swt):
-            Wpy = pywt.wavedec2(self.data, wname, mode="per", level=levels)
-        else:
-            Wpy = pywt.swt2(self.data, wname, levels)
-        logging.info("pywt took %.3f ms" % elapsed_ms(t0))
-
-        self.compare_coeffs(W, Wpy, swt=bool(do_swt))
-        """
-
-
 
     def dwt2(self, W, data, wname, levels):
         """
@@ -193,10 +186,10 @@ class TestWavelet(ParametrizedTestCase):
         logging.info("computing Wavelets from pypwt")
         t0 = time()
         W.forward()
-        logging.info("Wavelets.forward() took %.3f ms" % elapsed_ms(t0))
+        logging.info("Wavelets.forward took %.3f ms" % elapsed_ms(t0))
 
         # Forward DWT2 with pywt
-        logging.info("computing Wavelets from pywt")
+        logging.info("computing wavedec2 from pywt")
         Wpy = pywt.wavedec2(data, wname, mode=per_kw, level=levels)
         logging.info("pywt took %.3f ms" % elapsed_ms(t0))
 
@@ -215,7 +208,6 @@ class TestWavelet(ParametrizedTestCase):
         for i in range(levels): # wavedec2 format
             # FIXME: Error increases when levels increase, since output is scaled.
             tol = self.tol * 2**(i+1)
-
             D1, D2, D3 = Wpy[levels-i][0], Wpy[levels-i][1], Wpy[levels-i][2]
             logging.info("%s Level %d %s" % ("-"*5, i+1, "-"*5))
             maxerr = _calc_errors(D1, W_coeffs[i+1][0], "[det.H]")
@@ -229,39 +221,27 @@ class TestWavelet(ParametrizedTestCase):
 
     def idwt2(self, W, data, wname, levels):
         """
-        Test pypwt against pywt for DWT2 (wavedec2).
+        Test pypwt for DWT reconstruction (IDWT2).
         """
-        # Forward DWT2 with pypwt
-        logging.info("computing Wavelets from pypwt")
-        t0 = time()
+
+        # inverse DWT with pypwt
         W.forward()
-        logging.info("Wavelets.forward() took %.3f ms" % elapsed_ms(t0))
+        logging.info("computing Wavelets.inverse from pypwt")
+        t0 = time()
+        W.inverse()
+        logging.info("Wavelets.inverse took %.3f ms" % elapsed_ms(t0))
 
-        # Forward DWT2 with pywt
-        logging.info("computing Wavelets from pywt")
-        Wpy = pywt.wavedec2(data, wname, mode=per_kw, level=levels)
-        logging.info("pywt took %.3f ms" % elapsed_ms(t0))
+        if self.do_pywt:
+            # inverse DWT with pywt
+            Wpy = pywt.wavedec2(data, wname, mode=per_kw, level=levels)
+            logging.info("computing waverec2 from pywt")
+            _ = pywt.waverec2(Wpy, wname, mode=per_kw)
+            logging.info("pywt took %.3f ms" % elapsed_ms(t0))
 
-        # Compare results
-        W_coeffs = W.coeffs
-        if (levels != W.levels):
-            err_msg = str("compare_coeffs(): pypwt instance has %d levels while pywt instance has %d levels" % (W.levels, levels))
-            logging.error(err_msg)
-            raise ValueError(err_msg)
-        A = Wpy[0]
-        maxerr = _calc_errors(A, W_coeffs[0], "[app]")
-        self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the approximation coefficients (errmax = %e)" % (wname, maxerr))
-        for i in range(levels): # wavedec2 format
-            D1, D2, D3 = Wpy[levels-i][0], Wpy[levels-i][1], Wpy[levels-i][2]
-            logging.info("%s Level %d %s" % ("-"*5, i+1, "-"*5))
-            maxerr = _calc_errors(D1, W_coeffs[i+1][0], "[det.H]")
-            self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the detail coefficients 1 at level %d (errmax = %e)" % (wname, i+1, maxerr))
-            maxerr = _calc_errors(D2, W_coeffs[i+1][1], "[det.V]")
-            self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the detail coefficients 2 at level %d (errmax = %e)" % (wname, i+1, maxerr))
-            maxerr = _calc_errors(D3, W_coeffs[i+1][2], "[det.D]")
-            self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the detail coefficients 3 at level %d (errmax = %e)" % (wname, i+1, maxerr))
-
-
+        # Check reconstruction
+        W_image = W.image
+        maxerr = _calc_errors(data, W_image, "[rec]")
+        self.assertTrue(maxerr < self.tol, msg="[%s] something wrong with the reconstruction (errmax = %e)" % (wname, maxerr))
 
 
 
@@ -319,13 +299,6 @@ class TestWavelet(ParametrizedTestCase):
 
 
 
-
-
-
-
-
-
-
 def dwt1_batched(testwavelet):
     if pywt_ver < 0.5:
         raise RuntimeError("Batched 1D DWT is only available from PyWavelets 0.5")
@@ -334,18 +307,7 @@ def dwt1_batched(testwavelet):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+"""
 def test_suite_all_wavelets():
     print("Testing all the %d available filters [2D]" % len(available_filters))
     testSuite = unittest.TestSuite()
@@ -378,18 +340,54 @@ def test_suite_all_wavelets1D():
     for wname in available_filters:
         testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet1D, param=(wname, 2, 0, data)))
     return testSuite
+"""
+
+
 
 
 def test_dwt2():
     testSuite = unittest.TestSuite()
-
+    # TODO: with different data/shape/levels
     data = scipy_img
     levels = 4
-    params = ["",  levels, data, "dwt2", 1]
+    # --
     for wname in available_filters:
-        #~ params[0] = wname
-        testSuite.addTest(ParametrizedTestCase.parametrize(TestWavelet, param=[wname, levels, data, "dwt2", 1]))
+        par = {
+            "wname": wname,
+            "levels": levels,
+            "data": data,
+            "what": "dwt2",
+            "separable": 1
+        }
+        testcase = ParametrizedTestCase.parametrize(TestWavelet, param=par)
+        testSuite.addTest(testcase)
     return testSuite
+
+
+def test_idwt2():
+    testSuite = unittest.TestSuite()
+    # TODO: with different data/shape/levels
+    data = scipy_img
+    levels = 4
+    # --
+    for wname in available_filters:
+        par = {
+            "wname": wname,
+            "levels": levels,
+            "data": data,
+            "what":"idwt2",
+            "separable": 1,
+            "extra": {"tol": 3e-3, "do_pywt": False} # FIXME: problem with rbio3.1, can be 6e-4 otherwise
+        }
+        testcase = ParametrizedTestCase.parametrize(TestWavelet, param=par)
+        testSuite.addTest(testcase)
+    return testSuite
+
+
+
+
+
+
 
 
 
@@ -401,7 +399,8 @@ if __name__ == '__main__':
     print(v_str)
     #~ mysuite = test_suite_wavelet2D()
     #~ mysuite = test_suite_all_wavelets()
-    mysuite = test_dwt2()
+    #~ mysuite = test_dwt2()
+    mysuite = test_idwt2()
 
 
 
