@@ -136,6 +136,7 @@ cdef class Wavelets:
 
         img = self._checkarray(img)
 
+        ndim = min(ndim, 2) # tmp fix
         # We can have ndim != img.ndim, which means batched 1D transform
         self.batched1d = 0
         if img.ndim == 2:
@@ -196,26 +197,6 @@ cdef class Wavelets:
                     ahvd.append(np.zeros(self.sizes[i], dtype=np.float32))
                 self._coeffs.append(ahvd)
 
-        """
-        _factor = 2**self.levels if (self.do_swt == 0) else 1
-        if (self.ndim == 2) and not(self.batched1d): # 2D
-            self._coeffs.append(np.zeros((Nr2//_factor, Nc2//_factor), dtype=np.float32))
-            for i in range(self.levels):
-                ahvd = []
-                if self.do_swt == 0:
-                    if not(self.batched1d): Nr2 = Nr2//2
-                    Nc2 = Nc2//2
-                for i in range(3):
-                    ahvd.append(np.zeros((Nr2, Nc2), dtype=np.float32))
-                self._coeffs.append(ahvd)
-        else: # (batched) 1D
-            _shp = (Nc2//_factor, ) if self.ndim == 1 else (Nr2, Nc2//_factor)
-            self._coeffs.append(np.zeros(_shp, dtype=np.float32))
-            for i in range(self.levels):
-                if self.do_swt == 0: Nc2 = Nc2//2
-                _shp = (Nc2,) if self.ndim == 1 else (Nr2, Nc2)
-                self._coeffs.append(np.zeros(_shp, dtype=np.float32))
-        """
 
 
     def info(self):

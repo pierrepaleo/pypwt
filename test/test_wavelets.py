@@ -119,6 +119,18 @@ class TestWavelet(ParametrizedTestCase):
             "swt": self.swt,
             "iswt": self.iswt,
         }
+        self.W = None
+
+
+    def tearDown(self):
+        #
+        # This one is very important when running many tests.
+        # For some reason, it looks like the reference to the Wavelets object
+        # is not always updated, causing some errors.
+        # This should be investigated further...
+        #
+        if self.W is not None:
+            del self.W
 
 
     def test_wavelet(self):
@@ -729,17 +741,17 @@ def test_iswt_batched():
 def test_all():
     suite = unittest.TestSuite()
     suite.addTest(test_dwt2())
-    #~ suite.addTest(test_idwt2())
-    #~ suite.addTest(test_swt2())
+    suite.addTest(test_idwt2())
+    suite.addTest(test_swt2())
     suite.addTest(test_iswt2())
-    #~ suite.addTest(test_dwt())
-    #~ suite.addTest(test_dwt_batched())
-    #~ suite.addTest(test_idwt())
-    #~ suite.addTest(test_idwt_batched())
-    #~ suite.addTest(test_swt())
-    #~ suite.addTest(test_swt_batched())
-    #~ suite.addTest(test_iswt())
-    #~ suite.addTest(test_iswt_batched())
+    suite.addTest(test_dwt())
+    suite.addTest(test_dwt_batched())
+    suite.addTest(test_idwt())
+    suite.addTest(test_idwt_batched())
+    suite.addTest(test_swt())
+    suite.addTest(test_swt_batched())
+    suite.addTest(test_iswt())
+    suite.addTest(test_iswt_batched())
     return suite
 
 
