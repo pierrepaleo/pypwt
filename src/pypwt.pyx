@@ -15,6 +15,17 @@ cdef extern from "../pdwt/src/wt.h":
         int do_swt
         int hlen
 
+    ctypedef enum w_state:
+        W_INIT,             # The class has just been initialized (coeffs not computed)
+        W_FORWARD,          # W.forward() has just been performed (coeffs computed)
+        W_INVERSE,          # W.inverse() has just been performed (d_image modified, coeffs modified !)
+        W_THRESHOLD,        # The coefficients have been modified
+        W_CREATION_ERROR,   # Error when creating the Wavelets instance
+        W_FORWARD_ERROR,    # Error when computing the forward transform
+        W_INVERSE_ERROR,    # Error when computing the inverse transform
+        W_THRESHOLD_ERROR   # Error when thresholding the coefficients
+
+
     cdef cppclass C_Wavelets "Wavelets":
 
         # C++ attributes should be declared here if we want to access them
@@ -22,6 +33,7 @@ cdef extern from "../pdwt/src/wt.h":
         int do_cycle_spinning
         int do_separable
         w_info winfos
+        w_state state
 
         # Methods
         # -------
@@ -29,7 +41,6 @@ cdef extern from "../pdwt/src/wt.h":
         # Wavelets(float* img, int Nr, int Nc, const char* wname, int levels, int memisonhost=1, int do_separable = 1, int do_cycle_spinning = 0, int do_swt = 0, int ndim = 2);
         C_Wavelets(float*, int, int, const char*, int, int, int, int, int, int)
         C_Wavelets(C_Wavelets) # copy constructor
-#~         ~C_Wavelets()
         void forward()
         void soft_threshold(float, int, int, int)
         void hard_threshold(float, int, int)
@@ -44,6 +55,7 @@ cdef extern from "../pdwt/src/wt.h":
         void set_image(float*, int)
         void set_coeff(float*, int, int)
         int add_wavelet(C_Wavelets, float)
+
 
 cdef class Wavelets:
     """
@@ -90,7 +102,6 @@ cdef class Wavelets:
     cdef tuple shape
     cdef readonly int batched1d
 #~     cdef readonly str adr
-
 
     def __cinit__(self,
                     np.ndarray img,
@@ -487,8 +498,16 @@ cdef class Wavelets:
             if dcoeff.shape[0] != coeff.shape[0] or dcoeff.shape[1] != coeff.shape[1]:
                 raise ValueError("set_coefInvalid coefficient shape : expected %s, got %s" % (str(dcoeff.shape), str(coeff.shape)))
 
-
         self.w.set_coeff(<float*> np.PyArray_DATA(coeff), num, 0)
+
+
+    def __dealloc__(self):
+        """
+        Destructor
+        """
+        if self.w is not NULL: del self.w
+
+
 
 
     @classmethod
