@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
 # TODO:
 #  - less code duplications for the different tests
 #  - "pywt" vs "PyWavelets"
 #    - [OK] Legacy: support pywt
 #    - Take PyWavelets new swt order into account
-#
 
 import sys
 import unittest
@@ -15,7 +13,6 @@ import logging
 import numpy as np
 from time import time
 from testutils import available_filters
-
 
 try:
     import pywt
@@ -33,8 +30,6 @@ try:
 except ImportError:
     from scipy.misc import lena
     scipy_img = lena()
-
-
 # Version <= 0.5 of PyWavelets uses the word "periodization"
 # for the dwt extension mode, instead of "per" for nigma/pywt version.
 # These are not compatibible for now.
@@ -47,6 +42,15 @@ except AttributeError: # nigma/pywt
     per_kw = "per"
     pywt_ver = -1.0
     pywt_ver_full = "?"
+
+
+
+# Uncomment for odd-size data
+# scipy_img = scipy_img[:511, :509]
+
+
+
+
 
 
 
@@ -173,6 +177,19 @@ class TestWavelet(ParametrizedTestCase):
         if "2" in self.what: ndim = 2
         else: ndim = 1
         self.W = Wavelets(self.data, self.wname, self.levels, do_separable=self.separable, do_swt=do_swt, ndim=ndim)
+
+        # pywt/PyWavelets do not support odd-size SWT
+        if "swt" in self.what:
+            nope = 0
+            if (self.data.shape[0] & 1): nope = 1
+            if (self.W.ndim > 1):
+                if (self.data.shape[1] & 1): nope = 1
+            if nope:
+                if "i" in self.what: # Inversion test can be performed without pywt
+                    if self.extra_args is None: self.extra_args = {}
+                    self.extra_args["do_pywt"] = False
+                else: # Forward transform must be run with pywt for comparisons
+                     self.skipTest("Skipping %s with data shape %s, as pywt does not support odd-sized SWT" % (self.what, str(self.data.shape)))
 
         # Run the test
         if self.what not in self.tests:
@@ -760,9 +777,6 @@ if __name__ == '__main__':
     if pywt_ver < 0: pywt_ver = "?"
     v_str = str("Using pypwt version %s and pywavelets version %s" % (Wavelets.version(), str(pywt_ver_full)))
     mysuite = test_all()
-
-
-
     runner = unittest.TextTestRunner()
     runner.run(mysuite)
 
