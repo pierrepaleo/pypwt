@@ -148,15 +148,23 @@ class custom_build_ext(build_ext):
         build_ext.build_extensions(self)
 
 
-setup(name='pypwt',
-      # random metadata. there's more you can supply
-      author='Pierre Paleo',
-      version='0.6.2',
+setup(
+    name='pypwt',
+    author='Pierre Paleo',
+    version='0.7.0',
+    author_email = "pierre.paleo@esrf.fr",
+    maintainer = "Pierre Paleo",
+    maintainer_email = "pierre.paleo@esrf.fr",
 
-      ext_modules = [ext],
+    long_description = """
+    Python Wrapper for Parallel Discrete Wavelet Transform
+    """,
 
-      # inject our custom trigger
-      cmdclass={'build_ext': custom_build_ext},
+    ext_modules = [ext],
+    # inject our custom trigger
+    cmdclass={'build_ext': custom_build_ext},
 
-      # since the package has c code, the egg cannot be zipped
-      zip_safe=False)
+
+
+    # since the package has c code, the egg cannot be zipped
+    zip_safe=False)
