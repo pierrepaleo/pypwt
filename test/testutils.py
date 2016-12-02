@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+try:
+    from scipy.misc import ascent
+    scipy_img = ascent()
+except ImportError:
+    from scipy.misc import lena
+    scipy_img = lena()
+
+
 # See ppdwt/filters.h
 available_filters = [
     "haar",

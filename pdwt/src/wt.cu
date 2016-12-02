@@ -232,6 +232,13 @@ Wavelets::~Wavelets(void) {
 
 /// Method : forward
 void Wavelets::forward(void) {
+    
+    // PROFILING
+    cudaEvent_t tstart, tstop;
+    cudaEventCreate(&tstart); cudaEventCreate(&tstop);
+    float elapsedTime;
+    // --- PROFILING
+    
     if (state == W_CREATION_ERROR) {
         puts("Warning: forward transform not computed, as there was an error when creating the wavelets");
         return;
@@ -262,12 +269,25 @@ void Wavelets::forward(void) {
             }
         }
     }
+    
+    // PROFILING
+    cudaEventRecord(tstart, 0);
+    cudaEventRecord(tstop, 0); cudaEventSynchronize(tstop); cudaEventElapsedTime(&elapsedTime, tstart, tstop);
+    // --- PROFILING
+    
     // else: not implemented yet
 
     state = W_FORWARD;
 }
 /// Method : inverse
 void Wavelets::inverse(void) {
+
+    // PROFILING
+    cudaEvent_t tstart, tstop;
+    cudaEventCreate(&tstart); cudaEventCreate(&tstop);
+    float elapsedTime;
+    // --- PROFILING
+    
     if (state == W_INVERSE) { // TODO: what to do in this case ? Force re-compute, or abort ?
         puts("Warning: W.inverse() has already been run. Inverse is available in W.get_image()");
         return;
@@ -298,6 +318,13 @@ void Wavelets::inverse(void) {
             }
         }
     }
+
+    // PROFILING
+    cudaEventRecord(tstart, 0);
+    cudaEventRecord(tstop, 0); cudaEventSynchronize(tstop); cudaEventElapsedTime(&elapsedTime, tstart, tstop);
+    // --- PROFILING
+    
+    
     // else: not implemented yet
     if (do_cycle_spinning) circshift(-current_shift_r, -current_shift_c, 1);
     state = W_INVERSE;
