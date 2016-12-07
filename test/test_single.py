@@ -38,11 +38,11 @@ from test_wavelets import test_wavelet
 def run():
     # You can customize the input data/levels in the following lines
     data = scipy_img
-    levels = 8
+    levels = 5#8
 
     # You can customize what test is performed by modifying the value of "what"
     #what = "dwt2"
-    what = "idwt2"
+    #what = "idwt2"
     #what = "swt2"
     #what = "iswt2"
     #what = "dwt"
@@ -50,7 +50,7 @@ def run():
     #what = "idwt"
     #what = "idwt_batched"
     #what = "swt"
-    #what = "swt_batched"
+    what = "swt_batched"
     #what = "iswt"
     #what = "iswt_batched"
 
