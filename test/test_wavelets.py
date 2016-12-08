@@ -308,7 +308,6 @@ class TestWavelet(ParametrizedTestCase):
 
         # For now pypwt only returns the last appcoeff
         A = Wpy[levels-1][0]
-        from spire.utils import ims
         maxerr = _calc_errors(A, W_coeffs[0], "[app]")
         self.assertTrue(maxerr < tol, msg="[%s] something wrong with the approximation coefficients (%d levels) (errmax = %e)" % (wname, levels, maxerr))
         for i in range(levels): # wavedec2 format. TODO: pywavelets > 0.5 will use another order
