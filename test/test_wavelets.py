@@ -492,7 +492,7 @@ class TestWavelet(ParametrizedTestCase):
 
 
 
-def test_wavelet(what, data=None, levels=None):
+def test_wavelet(what, data=None, levels=None, wname=None):
     """
     Entry point for running a test.
     It returns a unittest.TestSuite() instance.
@@ -505,6 +505,9 @@ def test_wavelet(what, data=None, levels=None):
         Input data
     levels: int, optional
         Number of decomposition levels
+    wname: str, optional
+        Name of the wavelet to test. If no argument is provided,
+        all wavelets will be tested.
 
     Example
     ---------
@@ -644,12 +647,22 @@ def test_wavelet(what, data=None, levels=None):
                 "do_pywt": False # set to True for benchmarking - can be slow !
             }
         }
-    for wname in available_filters:
+    if wname is None: wnames = available_filters
+    else: wnames = [wname] # TODO: iterable user-provided "wname"
+    for wname in wnames:
         par_curr = deepcopy(par) # otherwise the same dict is used for all tests
         par_curr["wname"] = wname
         testcase = ParametrizedTestCase.parametrize(TestWavelet, param=par_curr)
         testSuite.addTest(testcase)
     return testSuite
+
+
+
+
+
+
+
+
 
 
 
