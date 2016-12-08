@@ -121,6 +121,9 @@ class TestWavelet(ParametrizedTestCase):
         }
         self.W = None
 
+        v_str = str("Using pypwt version %s and pywavelets version %s" % (Wavelets.version(), str(pywt_ver_full)))
+        logging.info(v_str)
+
 
     def tearDown(self):
         #
@@ -144,6 +147,7 @@ class TestWavelet(ParametrizedTestCase):
             param[4]: separable mode for pypwt (default is True)
             param[5]: test-dependent extra parameters
         """
+
         if self.param is None:
             self.what = "dwt2"
             self.separable = 1
@@ -685,9 +689,6 @@ def test_all():
 
 
 if __name__ == '__main__':
-    if pywt_ver < 0: pywt_ver = "?"
-    v_str = str("Using pypwt version %s and pywavelets version %s" % (Wavelets.version(), str(pywt_ver_full)))
-    logging.info(v_str)
     mysuite = test_all()
     runner = unittest.TextTestRunner()
     runner.run(mysuite)
