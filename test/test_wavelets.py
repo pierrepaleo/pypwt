@@ -227,7 +227,7 @@ class TestWavelet(ParametrizedTestCase):
 
         # Forward DWT2 with pywt
         logging.info("computing wavedec2 from pywt")
-        Wpy = pywt.wavedec2(self.data, self.wname, mode=per_kw, level=levels)
+        Wpy = pywt.wavedec2(self.data, self.wname, mode=per_kw, level=self.levels)
         logging.info("pywt took %.3f ms" % elapsed_ms(t0))
 
         # Compare results
@@ -261,6 +261,7 @@ class TestWavelet(ParametrizedTestCase):
         """
 
         W = self.W
+        levels = self.levels
         # inverse DWT with pypwt
         W.forward()
         logging.info("computing Wavelets.inverse from pypwt")
@@ -542,7 +543,7 @@ def test_wavelet(what, data=None, levels=None, wname=None):
             "separable": 1,
             "extra": {
                 "tol": 7e-4,
-                "do_pywt": False # set to True for benchmarking - can be slow !
+                "do_pywt": True # False # set to True for benchmarking - can be slow !
             }
         }
     if what == "swt2":
@@ -563,7 +564,7 @@ def test_wavelet(what, data=None, levels=None, wname=None):
             "separable": 1,
             "extra": {
                 "tol": 4e-4,
-                "do_pywt": False # set to True for benchmarking - can be slow !
+                "do_pywt": True # False # set to True for benchmarking - can be slow !
             }
         }
     if what == "dwt":

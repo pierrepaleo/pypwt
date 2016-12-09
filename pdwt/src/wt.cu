@@ -131,18 +131,6 @@ Wavelets::Wavelets(
         winfos.ndims = 1;
     }
 
-    // Coeffs
-    DTYPE** d_coeffs_new;
-    if (ndim == 1) d_coeffs_new = w_create_coeffs_buffer_1d(winfos);
-    else if (ndim == 2) d_coeffs_new = w_create_coeffs_buffer(winfos);
-    else {
-        printf("ERROR: ndim=%d is not implemented\n", ndim);
-        //~ exit(1);
-        //~ throw std::runtime_error("Error on ndim");
-        state = W_CREATION_ERROR;
-    }
-    d_coeffs = d_coeffs_new;
-
     if (ndim == 1 && do_separable == 0) {
         puts("Warning: 1D DWT was requestred, which is incompatible with non-separable transform.");
         puts("Ignoring the do_separable option.");
@@ -171,6 +159,17 @@ Wavelets::Wavelets(
         printf("Forcing nlevels = %d\n", wmaxlev);
         winfos.nlevels = wmaxlev;
     }
+    // Coeffs
+    DTYPE** d_coeffs_new;
+    if (ndim == 1) d_coeffs_new = w_create_coeffs_buffer_1d(winfos);
+    else if (ndim == 2) d_coeffs_new = w_create_coeffs_buffer(winfos);
+    else {
+        printf("ERROR: ndim=%d is not implemented\n", ndim);
+        //~ exit(1);
+        //~ throw std::runtime_error("Error on ndim");
+        state = W_CREATION_ERROR;
+    }
+    d_coeffs = d_coeffs_new;
     if (do_cycle_spinning && do_swt) puts("Warning: makes little sense to use Cycle spinning with stationary Wavelet transform");
     // TODO
     if (do_cycle_spinning && ndim == 1) {

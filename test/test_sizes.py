@@ -31,25 +31,12 @@
 
 import numpy as np
 import unittest
-from testutils import scipy_img
+from testutils import scipy_img, create_data_to_good_size
 from test_wavelets import test_wavelet
 
 
 
-def iDivUp(a, b):
-    return (a + (b - 1))//b
 
-
-
-def create_data_to_good_size(data, size):
-    """
-    From a numpy array, create a second numpy array with a given size.
-    The result contains the tiled data, which is then cropped to the wanted size.
-    """
-    clip_r = iDivUp(size[0], data.shape[0])
-    clip_c = iDivUp(size[1], data.shape[1])
-    res = np.tile(data, (clip_r, clip_c))
-    return res[:size[0], :size[1]]
 
 
 
@@ -65,11 +52,11 @@ def run():
         (512, 512),
         (1024, 1024),
         (2048, 2048),
-        (4096, 4096),
+        #(4096, 4096),
     ]
     levels = 999 # will be cliped to max possible level
-    wname = "haar"
-    what = "dwt2"
+    wname = "db20"
+    what = "dwt"
     # -----------------------------------
 
     testSuite = unittest.TestSuite()

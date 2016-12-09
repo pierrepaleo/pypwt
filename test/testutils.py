@@ -1,12 +1,115 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import numpy as np
+from pywt import wavedec, wavedec2, waverec, waverec2, swt, swt2
+try:
+    from pywt import iswt, iswt2
+except ImportError: # nigma/pywt
+    iswt = None
+    iswt2 = None
+
 try:
     from scipy.misc import ascent
     scipy_img = ascent()
 except ImportError:
     from scipy.misc import lena
     scipy_img = lena()
+
+
+def iDivUp(a, b):
+    return (a + (b - 1))//b
+
+
+
+def create_data_to_good_size(data, size):
+    """
+    From a numpy array, create a second numpy array with a given size.
+    The result contains the tiled data, which is then cropped to the wanted size.
+    """
+    clip_r = iDivUp(size[0], data.shape[0])
+    clip_c = iDivUp(size[1], data.shape[1])
+    res = np.tile(data, (clip_r, clip_c))
+    return res[:size[0], :size[1]]
+
+
+
+what_to_params = {
+    "dwt2": {
+        "name": "2D Forward DWT",
+        "do_swt": 0,
+        "ndim": 2,
+        "pywt_function": wavedec2,
+     },
+    "idwt2": {
+        "name": "2D Inverse DWT",
+        "do_swt": 0,
+        "ndim": 2,
+        "pywt_function": waverec2,
+     },
+    "dwt": {
+        "name": "1D Forward DWT",
+        "do_swt": 0,
+        "ndim": 1,
+        "pywt_function": wavedec,
+     },
+    "idwt": {
+        "name": "1D Inverse DWT",
+        "do_swt": 0,
+        "ndim": 1,
+        "pywt_function": waverec,
+     },
+    "batched dwt": {
+        "name": "Batched 1D Forward DWT",
+        "do_swt": 0,
+        "ndim": 1,
+        "pywt_function": wavedec,
+     },
+    "batched idwt": {
+        "name": "Batched 1D Inverse DWT",
+        "do_swt": 0,
+        "ndim": 1,
+        "pywt_function": waverec,
+     },
+    "swt2": {
+        "name": "2D Forward SWT",
+        "do_swt": 1,
+        "ndim": 2,
+        "pywt_function": swt2,
+     },
+    "iswt2": {
+        "name": "2D Inverse SWT",
+        "do_swt": 1,
+        "ndim": 2,
+        "pywt_function": iswt2,
+     },
+    "swt": {
+        "name": "1D Forward SWT",
+        "do_swt": 0,
+        "ndim": 2,
+        "pywt_function": swt,
+     },
+    "iswt": {
+        "name": "1D Inverse SWT",
+        "do_swt": 1,
+        "ndim": 1,
+        "pywt_function": iswt,
+     },
+    "batched swt": {
+        "name": "Batched 1D Forward SWT",
+        "do_swt": 1,
+        "ndim": 1,
+        "pywt_function": swt,
+     },
+    "batched iswt": {
+        "name": "Batched 1D Inverse SWT",
+        "do_swt": 1,
+        "ndim": 1,
+        "pywt_function": iswt,
+     },
+}
+
+
 
 
 # See ppdwt/filters.h

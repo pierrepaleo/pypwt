@@ -114,6 +114,8 @@ cdef class Wavelets:
                     Wavelets copy = None
                   ):
 
+
+        """
         cdef C_Wavelets _w# cdef statement is only allowed here
         if copy: # Wavelets instanciated from another class
             _w = (copy.w)[0]
@@ -132,6 +134,7 @@ cdef class Wavelets:
             self.batched1d = copy.batched1d
             self._coeffs = deepcopy(copy._coeffs)
             return
+        """
 
 
         img = self._checkarray(img)
@@ -150,6 +153,7 @@ cdef class Wavelets:
             raise NotImplementedError("Wavelets(): Only 1D and 2D transforms are supported for now")
 
         # for ND
+        # FIXME: the "ndim" mechanism is not clear, as self.ndim ends up with "2" for batched transform
         shp = []
         for i in range(img.ndim):
             shp.append(img.shape[i])
@@ -486,15 +490,20 @@ cdef class Wavelets:
         """
         Destructor
         """
-        if self.w is not NULL: del self.w
+        self.cleanup()
 
+
+    def cleanup(self): # should not be called manually
+        if self.w is not NULL:
+            del self.w
+            self.w = NULL
 
 
 
     @classmethod
     def version(cls):
         """
-        Return the current version of the pywt library
+        Return the current version of the pypwt library
 
         This mechanism is not so elegant and will be replaced in the future
         """
