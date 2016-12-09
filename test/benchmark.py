@@ -81,11 +81,7 @@ for wname in Wname:
         # pyPwt needs to compute a plan for each image size
         do_swt = what_to_params[what]["do_swt"]
         ndim = what_to_params[what]["ndim"]
-        print("creating Wavelets()")
         W_pypwt = Wavelets(data_curr, wname=wname, levels=levels, do_swt=do_swt, ndim=ndim)
-        print("OK")
-        print(W_pypwt)
-        raw_input()
         lev = W_pypwt.levels
         # Additionally, for inversion:
         if "i" in what:
@@ -93,9 +89,7 @@ for wname in Wname:
 
         def W_pypwt_exec():
             if "i" not in what:
-                print("Doing forward() size %s " % str(size))
                 W_pypwt.forward()
-                print("... OK")
             else:
                 W_pypwt.inverse()
 
@@ -107,11 +101,10 @@ for wname in Wname:
 
         xval = np.prod(size)/1e6
         label = str(size)
-        res_pywt = bench.add_bench_result("pywt: " + wname, xval, W_pywt_exec(wname, lev), label=label, command_args=data_curr, verbose=True, nexec=1)
-        res_pypwt = bench.add_bench_result("PDWT: " + wname, xval, W_pypwt_exec, label=label, verbose=True, nexec=1)
+        res_pywt = bench.add_bench_result("pywt: " + wname, xval, W_pywt_exec(wname, lev), label=label, command_args=data_curr, verbose=True, nexec=3)
+        res_pypwt = bench.add_bench_result("PDWT: " + wname, xval, W_pypwt_exec, label=label, verbose=True, nexec=3)
         results_pywt.append(res_pywt)
         results_pypwt.append(res_pypwt)
-        print("end of size %s" % str(size))
         del W_pypwt
 
 bench.fit_plots_to_fig(margin_x=0.2, margin_y=0.2)
