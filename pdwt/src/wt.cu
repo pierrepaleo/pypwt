@@ -287,7 +287,8 @@ void Wavelets::inverse(void) {
     float elapsedTime;
     // --- PROFILING
     
-    if (state == W_INVERSE) { // TODO: what to do in this case ? Force re-compute, or abort ?
+    // disabled for benchmarking
+    if (state == W_INVERSE && 0) { // TODO: what to do in this case ? Force re-compute, or abort ?
         puts("Warning: W.inverse() has already been run. Inverse is available in W.get_image()");
         return;
     }

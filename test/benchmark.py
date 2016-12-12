@@ -22,7 +22,7 @@ except AttributeError: # nigma/pywt
 # You can customize the following
 # -----------------------------------
 data = scipy_img
-what = "dwt2"
+what = "swt"
 Wname = ["haar", "db20"] # can be a list of <= 3 elements
 levels = 999 # cliped to max level
 
@@ -30,8 +30,8 @@ data_sizes = [
     (128, 128),
     (256, 256),
     (512, 512),
-    (1024, 1024),
-    (2048, 2048),
+    #(1024, 1024),
+    #(2048, 2048),
     #(4096, 4096),
 ]
 # -----------------------------------
@@ -59,16 +59,31 @@ results_pypwt = []
 
 # pywt does not need to compute a plan for each image size
 def W_pywt_exec(wname, lev):
+    what_fw = what.replace("i", "") # corresponding forward action
     if "s" in what: # pywt always use the periodic boundary condition with swt
         if "batched" in what: # pyPwt makes transforms along contiguous dimension
-            return lambda x : what_to_params[what]["pywt_function"](x, wname, level=lev, axis=1)
+            return (
+                lambda x : what_to_params[what_fw]["pywt_function"](x, wname, level=lev, axis=1),
+                lambda x : what_to_params[what]["pywt_function"](x, wname) #
+             )
         else:
-            return lambda x : what_to_params[what]["pywt_function"](x, wname, level=lev)
+            return (
+                lambda x : what_to_params[what_fw]["pywt_function"](x, wname, lev), # stangely "levels" is not a kw for swt2
+                lambda x : what_to_params[what]["pywt_function"](x, wname)
+            )
     else:
         if "batched" in what:
-            return lambda x : what_to_params[what]["pywt_function"](x, wname, mode=per_kw, level=lev, axis=1)
+            return (
+                lambda x : what_to_params[what_fw]["pywt_function"](x, wname, mode=per_kw, level=lev, axis=1),
+                lambda x : what_to_params[what]["pywt_function"](x, wname, mode=per_kw) #
+            )
         else:
-            return lambda x : what_to_params[what]["pywt_function"](x, wname, mode=per_kw, level=lev)
+            return (
+                lambda x : what_to_params[what_fw]["pywt_function"](x, wname, level=lev, mode=per_kw),
+                lambda x : what_to_params[what]["pywt_function"](x, wname, mode=per_kw),
+            )
+
+
 
 
 for wname in Wname:
@@ -77,15 +92,25 @@ for wname in Wname:
         # Make sure to use contiguous array for benchmarking
         if not(data_curr.flags["C_CONTIGUOUS"]): data_curr = np.ascontiguousarray(data_curr)
         #data_curr = data_curr.astype(np.float32)
+        data_in = data_curr # for pywt
 
         # pyPwt needs to compute a plan for each image size
         do_swt = what_to_params[what]["do_swt"]
         ndim = what_to_params[what]["ndim"]
         W_pypwt = Wavelets(data_curr, wname=wname, levels=levels, do_swt=do_swt, ndim=ndim)
         lev = W_pypwt.levels
-        # Additionally, for inversion:
+
+        # pywt does not need a plan
+        W_pywt_forward, W_pywt_inverse = W_pywt_exec(wname, lev)
+
+        # For inversion:
         if "i" in what:
             W_pypwt.forward()
+            W_pywt_function = W_pywt_inverse
+            data_in = W_pywt_forward(data_curr)
+        else:
+            W_pywt_function = W_pywt_forward
+
 
         def W_pypwt_exec():
             if "i" not in what:
@@ -101,7 +126,7 @@ for wname in Wname:
 
         xval = np.prod(size)/1e6
         label = str(size)
-        res_pywt = bench.add_bench_result("pywt: " + wname, xval, W_pywt_exec(wname, lev), label=label, command_args=data_curr, verbose=True, nexec=3)
+        res_pywt = bench.add_bench_result("pywt: " + wname, xval, W_pywt_function, label=label, command_args=data_in, verbose=True, nexec=3)
         res_pypwt = bench.add_bench_result("PDWT: " + wname, xval, W_pypwt_exec, label=label, verbose=True, nexec=3)
         results_pywt.append(res_pywt)
         results_pypwt.append(res_pypwt)
