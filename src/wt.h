@@ -56,6 +56,7 @@ class Wavelets {
     void soft_threshold(DTYPE beta, int do_thresh_appcoeffs = 0, int normalize = 0, int threshold_cousins = 0);
     void hard_threshold(DTYPE beta, int do_thresh_appcoeffs = 0, int normalize = 0);
     void shrink(DTYPE beta, int do_thresh_appcoeffs = 1);
+    void proj_linf(DTYPE beta, int do_thresh_appcoeffs = 1);
     void circshift(int sr, int sc, int inplace = 1);
     void inverse();
     DTYPE norm2sq();
@@ -65,7 +66,7 @@ class Wavelets {
     int get_coeff(DTYPE* coeff, int num);
     void set_image(DTYPE* img, int mem_is_on_device = 0);
     void set_coeff(DTYPE* coeff, int num, int mem_is_on_device = 0);
-    int set_filters_forward(int len, DTYPE* filter1, DTYPE* filter2, DTYPE* filter3 = NULL, DTYPE* filter4 = NULL);
+    int set_filters_forward(char* filtername, uint len, DTYPE* filter1, DTYPE* filter2, DTYPE* filter3 = NULL, DTYPE* filter4 = NULL);
     int set_filters_inverse(DTYPE* filter1, DTYPE* filter2, DTYPE* filter3 = NULL, DTYPE* filter4 = NULL);
 
     int add_wavelet(Wavelets W, DTYPE alpha=1.0f);
