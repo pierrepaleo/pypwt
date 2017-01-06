@@ -22,18 +22,39 @@ except AttributeError: # nigma/pywt
 # You can customize the following
 # -----------------------------------
 data = scipy_img
-what = "swt"
+what = "dwt2"
 Wname = ["haar", "db20"] # can be a list of <= 3 elements
-levels = 999 # cliped to max level
+levels = 14#999 # cliped to max level
 
 data_sizes = [
     (128, 128),
     (256, 256),
     (512, 512),
-    #(1024, 1024),
-    #(2048, 2048),
-    #(4096, 4096),
+    (1024, 1024),
+    (2048, 2048),
+    (4096, 4096),
+    #~ (2**13, 2**13),
+    #~ (2**14, 2**14),
 ]
+"""
+# For 1D:
+data_sizes = [
+    (1, 10**2),
+    (1, 10**3),
+    (1, 10**4),
+    (1, 10**5),
+    (1, 10**6),
+    (1, 10**7),
+]
+data_sizes = [ # pywt.swt wants power of 2
+    (1, 2**10),
+    (1, 2**13),
+    (1, 2**16),
+    (1, 2**19),
+    #~ (1, 2**18),
+    #~ (1, 2**20),
+]
+"""
 # -----------------------------------
 
 
@@ -85,9 +106,9 @@ def W_pywt_exec(wname, lev):
 
 
 
-
 for wname in Wname:
     for size in data_sizes:
+        if "2" not in what: size = (1, size[1])
         data_curr = create_data_to_good_size(data, size)
         # Make sure to use contiguous array for benchmarking
         if not(data_curr.flags["C_CONTIGUOUS"]): data_curr = np.ascontiguousarray(data_curr)
@@ -111,7 +132,6 @@ for wname in Wname:
         else:
             W_pywt_function = W_pywt_forward
 
-
         def W_pypwt_exec():
             if "i" not in what:
                 W_pypwt.forward()
@@ -124,13 +144,16 @@ for wname in Wname:
             W_pywt.forward()
             c = W_pywt.coeffs
 
-        xval = np.prod(size)/1e6
-        label = str(size)
+        xval = data_curr.size/1e6
+        label = str(data_curr.shape)
+        if min(data_curr.shape) == 1:
+            label = str("%.1e" % max(data_curr.shape)) # for 1D
         res_pywt = bench.add_bench_result("pywt: " + wname, xval, W_pywt_function, label=label, command_args=data_in, verbose=True, nexec=3)
         res_pypwt = bench.add_bench_result("PDWT: " + wname, xval, W_pypwt_exec, label=label, verbose=True, nexec=3)
         results_pywt.append(res_pywt)
         results_pypwt.append(res_pypwt)
         del W_pypwt
+
 
 bench.fit_plots_to_fig(margin_x=0.2, margin_y=0.2)
 print(np.array(results_pywt)/np.array(results_pypwt))

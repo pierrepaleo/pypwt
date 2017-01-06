@@ -27,6 +27,13 @@ def create_data_to_good_size(data, size):
     From a numpy array, create a second numpy array with a given size.
     The result contains the tiled data, which is then cropped to the wanted size.
     """
+    # For 1D
+    if min(size) == 1:
+        sz = max(size)
+        clip = iDivUp(sz, data.shape[0])
+        res = np.tile(data[0], clip)[:sz]
+        return res[:, np.newaxis].T
+
     clip_r = iDivUp(size[0], data.shape[0])
     clip_c = iDivUp(size[1], data.shape[1])
     res = np.tile(data, (clip_r, clip_c))

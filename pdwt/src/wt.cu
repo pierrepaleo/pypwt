@@ -231,13 +231,13 @@ Wavelets::~Wavelets(void) {
 
 /// Method : forward
 void Wavelets::forward(void) {
-    
+
     // PROFILING
     cudaEvent_t tstart, tstop;
     cudaEventCreate(&tstart); cudaEventCreate(&tstop);
     float elapsedTime;
     // --- PROFILING
-    
+
     if (state == W_CREATION_ERROR) {
         puts("Warning: forward transform not computed, as there was an error when creating the wavelets");
         return;
@@ -268,12 +268,12 @@ void Wavelets::forward(void) {
             }
         }
     }
-    
+
     // PROFILING
     cudaEventRecord(tstart, 0);
     cudaEventRecord(tstop, 0); cudaEventSynchronize(tstop); cudaEventElapsedTime(&elapsedTime, tstart, tstop);
     // --- PROFILING
-    
+
     // else: not implemented yet
 
     state = W_FORWARD;
@@ -286,7 +286,7 @@ void Wavelets::inverse(void) {
     cudaEventCreate(&tstart); cudaEventCreate(&tstop);
     float elapsedTime;
     // --- PROFILING
-    
+
     // disabled for benchmarking
     if (state == W_INVERSE && 0) { // TODO: what to do in this case ? Force re-compute, or abort ?
         puts("Warning: W.inverse() has already been run. Inverse is available in W.get_image()");
@@ -323,8 +323,8 @@ void Wavelets::inverse(void) {
     cudaEventRecord(tstart, 0);
     cudaEventRecord(tstop, 0); cudaEventSynchronize(tstop); cudaEventElapsedTime(&elapsedTime, tstart, tstop);
     // --- PROFILING
-    
-    
+
+
     // else: not implemented yet
     if (do_cycle_spinning) circshift(-current_shift_r, -current_shift_c, 1);
     state = W_INVERSE;
@@ -448,7 +448,7 @@ void Wavelets::set_coeff(DTYPE* coeff, int num, int mem_is_on_device) { // There
         int scale;
         if (num == 0) scale = winfos.nlevels;
         else scale = ((num-1)/3) +1;
-        for (int i = 0; i < scale; i++) {
+        if (!winfos.do_swt) for (int i = 0; i < scale; i++) {
             w_div2(&Nr2);
             w_div2(&Nc2);
         }
@@ -460,7 +460,7 @@ void Wavelets::set_coeff(DTYPE* coeff, int num, int mem_is_on_device) { // There
         int scale;
         if (num == 0) scale = winfos.nlevels;
         else scale = num;
-        for (int i = 0; i < scale; i++) {
+        if (!winfos.do_swt) for (int i = 0; i < scale; i++) {
             w_div2(&Nc2);
         }
     }
