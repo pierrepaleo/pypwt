@@ -114,6 +114,8 @@ cdef class Wavelets:
                     Wavelets copy = None
                   ):
 
+
+        """
         cdef C_Wavelets _w# cdef statement is only allowed here
         if copy: # Wavelets instanciated from another class
             _w = (copy.w)[0]
@@ -132,6 +134,7 @@ cdef class Wavelets:
             self.batched1d = copy.batched1d
             self._coeffs = deepcopy(copy._coeffs)
             return
+        """
 
 
         img = self._checkarray(img)
@@ -150,6 +153,7 @@ cdef class Wavelets:
             raise NotImplementedError("Wavelets(): Only 1D and 2D transforms are supported for now")
 
         # for ND
+        # FIXME: the "ndim" mechanism is not clear, as self.ndim ends up with "2" for batched transform
         shp = []
         for i in range(img.ndim):
             shp.append(img.shape[i])
@@ -352,7 +356,7 @@ cdef class Wavelets:
 
 
 
-    def soft_threshold(self, float beta, int do_threshold_appcoeffs = 0, int normalize = 0, int threshold_cousins = 0):
+    def soft_threshold(self, float beta, int do_threshold_appcoeffs = 0, int normalize = 0):
         """
         Soft threshold the wavelets coefficients.
         The soft thresholding is defined by
@@ -368,17 +372,12 @@ cdef class Wavelets:
         do_threshold_appcoeffs : int, optional (default is 0)
             if not 0, the approximation coefficients will also be thresholded
         normalize: int, optional (default is 0)
-            ...
-        threshold_cousins : int, optional (default is 0)
-            if set to 1, the detail coefficients are set to zero if the
-            corresponding approximation coefficients were set to zero.
-            This is only implemented for SWT.
+            If set, the threshold is divided by sqrt(2) at each scale
         """
         cdef float c_beta = beta
         cdef int c_dt = do_threshold_appcoeffs
         cdef int c_n = normalize
-        cdef int c_c = threshold_cousins
-        self.w.soft_threshold(c_beta, c_dt, c_n, c_c)
+        self.w.soft_threshold(c_beta, c_dt, c_n)
 
 
     def hard_threshold(self, float beta, int do_threshold_appcoeffs = 0, int normalize = 0):
@@ -486,19 +485,24 @@ cdef class Wavelets:
         """
         Destructor
         """
-        if self.w is not NULL: del self.w
+        self.cleanup()
 
+
+    def cleanup(self): # should not be called manually
+        if self.w is not NULL:
+            del self.w
+            self.w = NULL
 
 
 
     @classmethod
     def version(cls):
         """
-        Return the current version of the pywt library
+        Return the current version of the pypwt library
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "0.7.0"
+        return "0.8.0"
 
 
 

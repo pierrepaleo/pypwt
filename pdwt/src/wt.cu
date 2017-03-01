@@ -21,6 +21,10 @@
   }
 
 
+// FIXME: temp. workaround
+#define MAX_FILTER_WIDTH 40
+
+
 
 /// ****************************************************************************
 /// ******************** Wavelets class ****************************************
@@ -229,7 +233,15 @@ Wavelets::~Wavelets(void) {
 }
 
 /// Method : forward
-void Wavelets::forward(void) {
+float Wavelets::forward(void) {
+
+    // PROFILING
+    cudaEvent_t tstart, tstop;
+    cudaEventCreate(&tstart); cudaEventCreate(&tstop);
+    float elapsedTime;
+    cudaEventRecord(tstart, 0);
+    // --- PROFILING
+
     if (state == W_CREATION_ERROR) {
         puts("Warning: forward transform not computed, as there was an error when creating the wavelets");
         return;
@@ -261,12 +273,19 @@ void Wavelets::forward(void) {
         }
     }
     // else: not implemented yet
-
     state = W_FORWARD;
 }
 /// Method : inverse
 void Wavelets::inverse(void) {
-    if (state == W_INVERSE) { // TODO: what to do in this case ? Force re-compute, or abort ?
+
+    // PROFILING
+    cudaEvent_t tstart, tstop;
+    cudaEventCreate(&tstart); cudaEventCreate(&tstop);
+    float elapsedTime;
+    // --- PROFILING
+
+    // disabled for benchmarking
+    if (state == W_INVERSE && 0) { // TODO: what to do in this case ? Force re-compute, or abort ?
         puts("Warning: W.inverse() has already been run. Inverse is available in W.get_image()");
         return;
     }
@@ -296,18 +315,25 @@ void Wavelets::inverse(void) {
             }
         }
     }
+
+    // PROFILING
+    cudaEventRecord(tstart, 0);
+    cudaEventRecord(tstop, 0); cudaEventSynchronize(tstop); cudaEventElapsedTime(&elapsedTime, tstart, tstop);
+    // --- PROFILING
+
+
     // else: not implemented yet
     if (do_cycle_spinning) circshift(-current_shift_r, -current_shift_c, 1);
     state = W_INVERSE;
 }
 
 /// Method : soft thresholding (L1 proximal)
-void Wavelets::soft_threshold(DTYPE beta, int do_thresh_appcoeffs, int normalize, int threshold_cousins) {
+void Wavelets::soft_threshold(DTYPE beta, int do_thresh_appcoeffs, int normalize) {
     if (state == W_INVERSE) {
         puts("Warning: Wavelets(): cannot threshold coefficients, as they were modified by W.inverse()");
         return;
     }
-    w_call_soft_thresh(d_coeffs, beta, winfos, do_thresh_appcoeffs, normalize, threshold_cousins);
+    w_call_soft_thresh(d_coeffs, beta, winfos, do_thresh_appcoeffs, normalize);
     // TODO: handle W_THRESHOLD_ERROR from a return code
 }
 
@@ -565,6 +591,7 @@ int Wavelets::set_filters_forward(char* filtername, uint len, DTYPE* filter1, DT
     }
     winfos.hlen = len;
     strncpy(wname, filtername, 128);
+
     return 0;
 }
 
@@ -593,6 +620,7 @@ int Wavelets::set_filters_inverse(DTYPE* filter1, DTYPE* filter2, DTYPE* filter3
             return -3;
         }
     }
+
     return 0;
 }
 

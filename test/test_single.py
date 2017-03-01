@@ -28,12 +28,33 @@
 #  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 #  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 
+
+
 import unittest
-from test_wavelets import test_all
+from testutils import scipy_img
+from test_wavelets import test_wavelet
 
 
 def run():
-    mysuite = test_all()
+    # You can customize the input data/levels in the following lines
+    data = scipy_img
+    levels = 5#8
+
+    # You can customize what test is performed by modifying the value of "what"
+    #what = "dwt2"
+    #what = "idwt2"
+    #what = "swt2"
+    #what = "iswt2"
+    #what = "dwt"
+    #what = "dwt_batched"
+    #what = "idwt"
+    #what = "idwt_batched"
+    #what = "swt"
+    what = "swt_batched"
+    #what = "iswt"
+    #what = "iswt_batched"
+
+    mysuite = test_wavelet(what, data, levels)
     runner = unittest.TextTestRunner()
     if not runner.run(mysuite).wasSuccessful():
         exit(1)

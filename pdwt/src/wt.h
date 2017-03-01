@@ -53,7 +53,7 @@ class Wavelets {
     // Methods
     // -------
     void forward();
-    void soft_threshold(DTYPE beta, int do_thresh_appcoeffs = 0, int normalize = 0, int threshold_cousins = 0);
+    void soft_threshold(DTYPE beta, int do_thresh_appcoeffs = 0, int normalize = 0);
     void hard_threshold(DTYPE beta, int do_thresh_appcoeffs = 0, int normalize = 0);
     void shrink(DTYPE beta, int do_thresh_appcoeffs = 1);
     void proj_linf(DTYPE beta, int do_thresh_appcoeffs = 1);
