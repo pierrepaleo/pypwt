@@ -21,6 +21,10 @@
   }
 
 
+// FIXME: temp. workaround
+#define MAX_FILTER_WIDTH 40
+
+
 
 /// ****************************************************************************
 /// ******************** Wavelets class ****************************************
@@ -131,18 +135,6 @@ Wavelets::Wavelets(
         winfos.ndims = 1;
     }
 
-    // Coeffs
-    DTYPE** d_coeffs_new;
-    if (ndim == 1) d_coeffs_new = w_create_coeffs_buffer_1d(winfos);
-    else if (ndim == 2) d_coeffs_new = w_create_coeffs_buffer(winfos);
-    else {
-        printf("ERROR: ndim=%d is not implemented\n", ndim);
-        //~ exit(1);
-        //~ throw std::runtime_error("Error on ndim");
-        state = W_CREATION_ERROR;
-    }
-    d_coeffs = d_coeffs_new;
-
     if (ndim == 1 && do_separable == 0) {
         puts("Warning: 1D DWT was requestred, which is incompatible with non-separable transform.");
         puts("Ignoring the do_separable option.");
@@ -171,6 +163,17 @@ Wavelets::Wavelets(
         printf("Forcing nlevels = %d\n", wmaxlev);
         winfos.nlevels = wmaxlev;
     }
+    // Allocate coeffs
+    DTYPE** d_coeffs_new;
+    if (ndim == 1) d_coeffs_new = w_create_coeffs_buffer_1d(winfos);
+    else if (ndim == 2) d_coeffs_new = w_create_coeffs_buffer(winfos);
+    else {
+        printf("ERROR: ndim=%d is not implemented\n", ndim);
+        //~ exit(1);
+        //~ throw std::runtime_error("Error on ndim");
+        state = W_CREATION_ERROR;
+    }
+    d_coeffs = d_coeffs_new;
     if (do_cycle_spinning && do_swt) puts("Warning: makes little sense to use Cycle spinning with stationary Wavelet transform");
     // TODO
     if (do_cycle_spinning && ndim == 1) {
@@ -214,7 +217,6 @@ Wavelets::Wavelets(const Wavelets &W) :
     }
     else {
         puts("ERROR: 3D wavelets not implemented yet");
-        //~ exit(-1);
         state = W_CREATION_ERROR;
     }
 }
@@ -262,9 +264,10 @@ void Wavelets::forward(void) {
             }
         }
     }
-    // else: not implemented yet
 
+    // else: not implemented yet
     state = W_FORWARD;
+
 }
 /// Method : inverse
 void Wavelets::inverse(void) {
@@ -304,12 +307,12 @@ void Wavelets::inverse(void) {
 }
 
 /// Method : soft thresholding (L1 proximal)
-void Wavelets::soft_threshold(DTYPE beta, int do_thresh_appcoeffs, int normalize, int threshold_cousins) {
+void Wavelets::soft_threshold(DTYPE beta, int do_thresh_appcoeffs, int normalize) {
     if (state == W_INVERSE) {
         puts("Warning: Wavelets(): cannot threshold coefficients, as they were modified by W.inverse()");
         return;
     }
-    w_call_soft_thresh(d_coeffs, beta, winfos, do_thresh_appcoeffs, normalize, threshold_cousins);
+    w_call_soft_thresh(d_coeffs, beta, winfos, do_thresh_appcoeffs, normalize);
     // TODO: handle W_THRESHOLD_ERROR from a return code
 }
 
@@ -332,6 +335,17 @@ void Wavelets::shrink(DTYPE beta, int do_thresh_appcoeffs) {
     w_shrink(d_coeffs, beta, winfos, do_thresh_appcoeffs);
     // TODO: handle W_THRESHOLD_ERROR from a return code
 }
+/// Method : projection onto the L-infinity ball (infinity norm proximal, i.e dual L1 norm proximal)
+void Wavelets::proj_linf(DTYPE beta, int do_thresh_appcoeffs) {
+    if (state == W_INVERSE) {
+        puts("Warning: Wavelets(): cannot threshold coefficients, as they were modified by W.inverse()");
+        return;
+    }
+    w_call_proj_linf(d_coeffs, beta, winfos, do_thresh_appcoeffs);
+    // TODO: handle W_THRESHOLD_ERROR from a return code
+}
+
+
 
 
 
@@ -421,7 +435,7 @@ void Wavelets::set_coeff(DTYPE* coeff, int num, int mem_is_on_device) { // There
         int scale;
         if (num == 0) scale = winfos.nlevels;
         else scale = ((num-1)/3) +1;
-        for (int i = 0; i < scale; i++) {
+        if (!winfos.do_swt) for (int i = 0; i < scale; i++) {
             w_div2(&Nr2);
             w_div2(&Nc2);
         }
@@ -433,7 +447,7 @@ void Wavelets::set_coeff(DTYPE* coeff, int num, int mem_is_on_device) { // There
         int scale;
         if (num == 0) scale = winfos.nlevels;
         else scale = num;
-        for (int i = 0; i < scale; i++) {
+        if (!winfos.do_swt) for (int i = 0; i < scale; i++) {
             w_div2(&Nc2);
         }
     }
@@ -529,36 +543,47 @@ void Wavelets::print_informations() {
 /// Provide a custom filter bank to the current Wavelet instance.
 /// If do_separable = 1, the filters are expected to be L, H.
 /// Otherwise, the filters are expected to be A, H, V, D (square size)
-int Wavelets::set_filters_forward(int len, DTYPE* filter1, DTYPE* filter2, DTYPE* filter3, DTYPE* filter4) {
+int Wavelets::set_filters_forward(char* filtername, uint len, DTYPE* filter1, DTYPE* filter2, DTYPE* filter3, DTYPE* filter4) {
     if (len > MAX_FILTER_WIDTH) {
         printf("ERROR: Wavelets.set_filters_forward(): filter length (%d) exceeds the maximum size (%d)\n", len, MAX_FILTER_WIDTH);
         return -1;
     }
     if (do_separable) {
-        cudaMemcpyToSymbol(c_kern_L, filter1, len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
-        cudaMemcpyToSymbol(c_kern_H, filter2, len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
+        if (cudaMemcpyToSymbol(c_kern_L, filter1, len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess
+            || cudaMemcpyToSymbol(c_kern_H, filter2, len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        {
+            return -3;
+        }
     }
     else {
         if (filter3 == NULL || filter4 == NULL) {
             puts("ERROR: Wavelets.set_filters_forward(): expected argument 4 and 5 for non-separable filtering");
             return -2;
         }
-        cudaMemcpyToSymbol(c_kern_LL, filter1, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
-        cudaMemcpyToSymbol(c_kern_LH, filter2, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
-        cudaMemcpyToSymbol(c_kern_HL, filter3, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
-        cudaMemcpyToSymbol(c_kern_HH, filter4, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
+        if (cudaMemcpyToSymbol(c_kern_LL, filter1, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess
+            || cudaMemcpyToSymbol(c_kern_LH, filter2, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess
+            || cudaMemcpyToSymbol(c_kern_HL, filter3, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess
+            || cudaMemcpyToSymbol(c_kern_HH, filter4, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        {
+            return -3;
+        }
     }
     winfos.hlen = len;
+    strncpy(wname, filtername, 128);
+
     return 0;
 }
 
 /// Here the filters are assumed to be of the same size of those provided to set_filters_forward()
 int Wavelets::set_filters_inverse(DTYPE* filter1, DTYPE* filter2, DTYPE* filter3, DTYPE* filter4) {
-    int len = winfos.hlen;
+    uint len = winfos.hlen;
     if (do_separable) {
         // ignoring args 4 and 5
-        cudaMemcpyToSymbol(c_kern_IL, filter1, len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
-        cudaMemcpyToSymbol(c_kern_IH, filter2, len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
+        if (cudaMemcpyToSymbol(c_kern_IL, filter1, len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess
+            || cudaMemcpyToSymbol(c_kern_IH, filter2, len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        {
+            return -3;
+        }
     }
     else {
         if (filter3 == NULL || filter4 == NULL) {
@@ -566,11 +591,15 @@ int Wavelets::set_filters_inverse(DTYPE* filter1, DTYPE* filter2, DTYPE* filter3
             return -2;
         }
         // The same symbols are used for the inverse filters
-        cudaMemcpyToSymbol(c_kern_LL, filter1, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
-        cudaMemcpyToSymbol(c_kern_LH, filter2, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
-        cudaMemcpyToSymbol(c_kern_HL, filter3, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
-        cudaMemcpyToSymbol(c_kern_HH, filter4, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice);
+        if (cudaMemcpyToSymbol(c_kern_LL, filter1, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess
+            || cudaMemcpyToSymbol(c_kern_LH, filter2, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess
+            || cudaMemcpyToSymbol(c_kern_HL, filter3, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess
+            || cudaMemcpyToSymbol(c_kern_HH, filter4, len*len*sizeof(DTYPE), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+        {
+            return -3;
+        }
     }
+
     return 0;
 }
 
