@@ -356,7 +356,7 @@ cdef class Wavelets:
 
 
 
-    def soft_threshold(self, float beta, int do_threshold_appcoeffs = 0, int normalize = 0, int threshold_cousins = 0):
+    def soft_threshold(self, float beta, int do_threshold_appcoeffs = 0, int normalize = 0):
         """
         Soft threshold the wavelets coefficients.
         The soft thresholding is defined by
@@ -372,17 +372,12 @@ cdef class Wavelets:
         do_threshold_appcoeffs : int, optional (default is 0)
             if not 0, the approximation coefficients will also be thresholded
         normalize: int, optional (default is 0)
-            ...
-        threshold_cousins : int, optional (default is 0)
-            if set to 1, the detail coefficients are set to zero if the
-            corresponding approximation coefficients were set to zero.
-            This is only implemented for SWT.
+            If set, the threshold is divided by sqrt(2) at each scale
         """
         cdef float c_beta = beta
         cdef int c_dt = do_threshold_appcoeffs
         cdef int c_n = normalize
-        cdef int c_c = threshold_cousins
-        self.w.soft_threshold(c_beta, c_dt, c_n, c_c)
+        self.w.soft_threshold(c_beta, c_dt, c_n)
 
 
     def hard_threshold(self, float beta, int do_threshold_appcoeffs = 0, int normalize = 0):
@@ -507,7 +502,7 @@ cdef class Wavelets:
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "0.7.0"
+        return "0.8.0"
 
 
 

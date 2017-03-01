@@ -22,9 +22,9 @@ except AttributeError: # nigma/pywt
 # You can customize the following
 # -----------------------------------
 data = scipy_img
-what = "dwt2"
+what = "swt2"
 Wname = ["haar", "db20"] # can be a list of <= 3 elements
-levels = 14#999 # cliped to max level
+levels = 999 # cliped to max level
 
 data_sizes = [
     (128, 128),
@@ -32,10 +32,11 @@ data_sizes = [
     (512, 512),
     (1024, 1024),
     (2048, 2048),
-    (4096, 4096),
+    #(4096, 4096),
     #~ (2**13, 2**13),
     #~ (2**14, 2**14),
 ]
+
 """
 # For 1D:
 data_sizes = [
@@ -46,6 +47,8 @@ data_sizes = [
     (1, 10**6),
     (1, 10**7),
 ]
+"""
+"""
 data_sizes = [ # pywt.swt wants power of 2
     (1, 2**10),
     (1, 2**13),
@@ -113,7 +116,10 @@ for wname in Wname:
         # Make sure to use contiguous array for benchmarking
         if not(data_curr.flags["C_CONTIGUOUS"]): data_curr = np.ascontiguousarray(data_curr)
         #data_curr = data_curr.astype(np.float32)
-        data_in = data_curr # for pywt
+        # for pywt
+        data_in = data_curr
+        if min(data_in.shape) == 1:
+            data_in = data_in.ravel()
 
         # pyPwt needs to compute a plan for each image size
         do_swt = what_to_params[what]["do_swt"]
@@ -140,16 +146,20 @@ for wname in Wname:
 
         def W_pypwt_exec_with_copy(x):
             # Takes the H<->D transfers into account for the benchmark
-            W_pywt.set_image(x) # Here works for forward...
-            W_pywt.forward()
-            c = W_pywt.coeffs
+            if "i" not in what:
+		W_pypwt.set_image(x)
+                W_pypwt.forward()
+		_ = W_pypwt.coeffs
+            else: # TODO
+                W_pypwt.inverse()
 
         xval = data_curr.size/1e6
         label = str(data_curr.shape)
         if min(data_curr.shape) == 1:
             label = str("%.1e" % max(data_curr.shape)) # for 1D
         res_pywt = bench.add_bench_result("pywt: " + wname, xval, W_pywt_function, label=label, command_args=data_in, verbose=True, nexec=3)
-        res_pypwt = bench.add_bench_result("PDWT: " + wname, xval, W_pypwt_exec, label=label, verbose=True, nexec=3)
+        # res_pypwt = bench.add_bench_result("PDWT: " + wname, xval, W_pypwt_exec, label=label, verbose=True, nexec=3)
+        res_pypwt = bench.add_bench_result("PDWT: " + wname, xval, W_pypwt_exec_with_copy, command_args=data_in, label=label, verbose=True, nexec=3)
         results_pywt.append(res_pywt)
         results_pypwt.append(res_pypwt)
         del W_pypwt

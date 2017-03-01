@@ -230,12 +230,13 @@ Wavelets::~Wavelets(void) {
 }
 
 /// Method : forward
-void Wavelets::forward(void) {
+float Wavelets::forward(void) {
 
     // PROFILING
     cudaEvent_t tstart, tstop;
     cudaEventCreate(&tstart); cudaEventCreate(&tstop);
     float elapsedTime;
+    cudaEventRecord(tstart, 0);
     // --- PROFILING
 
     if (state == W_CREATION_ERROR) {
@@ -270,13 +271,14 @@ void Wavelets::forward(void) {
     }
 
     // PROFILING
-    cudaEventRecord(tstart, 0);
     cudaEventRecord(tstop, 0); cudaEventSynchronize(tstop); cudaEventElapsedTime(&elapsedTime, tstart, tstop);
     // --- PROFILING
 
     // else: not implemented yet
 
     state = W_FORWARD;
+
+
 }
 /// Method : inverse
 void Wavelets::inverse(void) {
