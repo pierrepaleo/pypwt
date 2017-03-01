@@ -102,7 +102,7 @@ ext = Extension('pypwt',
                 # the implementation of this trick is in customize_compiler() below
                 extra_compile_args={'gcc': [],
                                     'nvcc': ['-arch=sm_30', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
-                extra_link_args=['-dlink', '-arch=sm_30'],
+                #~ extra_link_args=['-dlink', '-arch=sm_30'], # TEST
                 include_dirs = [numpy_include, CUDA['include'], 'src'])
 
 
