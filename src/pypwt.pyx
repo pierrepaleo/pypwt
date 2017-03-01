@@ -42,7 +42,7 @@ cdef extern from "../pdwt/src/wt.h":
         C_Wavelets(float*, int, int, const char*, int, int, int, int, int, int)
         C_Wavelets(C_Wavelets) # copy constructor
         void forward()
-        void soft_threshold(float, int, int, int)
+        void soft_threshold(float, int, int)
         void hard_threshold(float, int, int)
         void shrink(float, int)
         void circshift(int, int, int)

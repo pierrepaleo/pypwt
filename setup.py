@@ -67,12 +67,16 @@ def locate_cuda():
                 'located in your $PATH. Either add it to your path, or set $CUDAHOME')
         home = os.path.dirname(os.path.dirname(nvcc))
 
-    cudaconfig = {'home':home, 'nvcc':nvcc,
-                  'include': pjoin(home, 'include')}
+    cudaconfig = {
+                    'home':home, 'nvcc':nvcc,
+                    'include': pjoin(home, 'include'),
+                    #~ 'lib64': "/usr/lib/x86_64-linux-gnu/"
+                  }
 
     #~ cudaconfig = {'home':home, 'nvcc':nvcc,
                   #~ 'include': pjoin(home, 'include'),
                   #~ 'lib64': pjoin(home, 'lib64')}
+
 
     for k, v in cudaconfig.items():#iteritems():
         if not os.path.exists(v):
@@ -88,7 +92,6 @@ except AttributeError:
     numpy_include = numpy.get_numpy_include()
 
 ext = Extension('pypwt',
-                #~ sources=['ppdwt/wt.cu', 'ppdwt/common.cu', 'src/pypwt.pyx'],
                 sources = ['pdwt/src/wt.cu', 'pdwt/src/common.cu', 'pdwt/src/utils.cu', 'pdwt/src/separable.cu', 'pdwt/src/nonseparable.cu', 'pdwt/src/haar.cu', 'pdwt/src/filters.cpp', 'src/pypwt.pyx'],
                 #~ library_dirs=[CUDA['lib64']],
                 libraries=['cudart', 'cublas'],
@@ -99,8 +102,8 @@ ext = Extension('pypwt',
                 # the implementation of this trick is in customize_compiler() below
                 extra_compile_args={'gcc': [],
                                     'nvcc': ['-arch=sm_30', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
+                extra_link_args=['-dlink', '-arch=sm_30'],
                 include_dirs = [numpy_include, CUDA['include'], 'src'])
-
 
 
 def customize_compiler_for_nvcc(self):
@@ -124,14 +127,17 @@ def customize_compiler_for_nvcc(self):
     # object but distutils doesn't have the ability to change compilers
     # based on source extension: we add it.
     def _compile(obj, src, ext, cc_args, extra_postargs, pp_opts):
-        if os.path.splitext(src)[1] == '.cu':
+        if os.path.splitext(src)[1] == '.cu': ########
             # use the cuda for .cu files
             self.set_executable('compiler_so', CUDA['nvcc'])
+            #~ self.set_executable('linker_so', CUDA['nvcc'])
             # use only a subset of the extra_postargs, which are 1-1 translated
             # from the extra_compile_args in the Extension class
             postargs = extra_postargs['nvcc']
         else:
             postargs = extra_postargs['gcc']
+
+        #~ self.set_executable('linker_so', CUDA['nvcc']) # TEST
 
         super(obj, src, ext, cc_args, postargs, pp_opts)
         # reset the default compiler_so, which we might have changed for cuda
@@ -141,17 +147,68 @@ def customize_compiler_for_nvcc(self):
     self._compile = _compile
 
 
+
+# TEST
+def customize_linker_for_nvcc(self):
+    """
+    Same as customize_compiler_for_nvcc, but for linker
+    """
+
+    # tell the compiler it can processes .cu
+    self.src_extensions.append('.cu')
+
+    # save references to the default compiler_so and _comple methods
+    default_linker_so = self.linker_so
+    super = self.link
+
+    # now redefine the link method.
+    def _link(self, target_desc, objects,
+             output_filename, output_dir=None, libraries=None,
+             library_dirs=None, runtime_library_dirs=None,
+             export_symbols=None, debug=0, extra_preargs=None,
+             extra_postargs=None, build_temp=None, target_lang=None):
+        if 1: ########
+            self.set_executable('linker_so', CUDA['nvcc'])
+            # use only a subset of the extra_postargs, which are 1-1 translated
+            # from the extra_compile_args in the Extension class
+            postargs = extra_postargs['nvcc']
+        else:
+            raise RuntimeError("")
+            #~ postargs = extra_postargs['gcc']
+
+        super(target_desc, objects,
+             output_filename, output_dir=None, libraries=None,
+             library_dirs=None, runtime_library_dirs=None,
+             export_symbols=None, debug=0, extra_preargs=None,
+             extra_postargs=None, build_temp=None, target_lang=None)
+        # reset the default likner_so, which we might have changed for cuda
+        self.linker_so = default_linker_so
+
+    # inject our redefined _compile method into the class
+    self.link = _link
+
+
+
+
+
+
+
+
+
+
 # run the customize_compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
         customize_compiler_for_nvcc(self.compiler)
+        #~ self.compiler.set_executable('linker_so', CUDA['nvcc']) # TEST
+        #~ self.compiler.set_executable('linker', CUDA['nvcc']) # TEST
         build_ext.build_extensions(self)
 
 
 setup(
     name='pypwt',
     author='Pierre Paleo',
-    version='0.7.0',
+    version='0.8.0',
     author_email = "pierre.paleo@esrf.fr",
     maintainer = "Pierre Paleo",
     maintainer_email = "pierre.paleo@esrf.fr",
