@@ -1,6 +1,21 @@
 #include "separable.h"
 #include "common.h"
 
+// Required for separate compilation (see Makefile)
+#ifndef CONSTMEM_FILTERS
+#define CONSTMEM_FILTERS
+__constant__ DTYPE c_kern_L[MAX_FILTER_WIDTH];
+__constant__ DTYPE c_kern_H[MAX_FILTER_WIDTH];
+__constant__ DTYPE c_kern_IL[MAX_FILTER_WIDTH];
+__constant__ DTYPE c_kern_IH[MAX_FILTER_WIDTH];
+
+__constant__ DTYPE c_kern_LL[MAX_FILTER_WIDTH * MAX_FILTER_WIDTH];
+__constant__ DTYPE c_kern_LH[MAX_FILTER_WIDTH * MAX_FILTER_WIDTH];
+__constant__ DTYPE c_kern_HL[MAX_FILTER_WIDTH * MAX_FILTER_WIDTH];
+__constant__ DTYPE c_kern_HH[MAX_FILTER_WIDTH * MAX_FILTER_WIDTH];
+#endif
+
+
 /// Compute the low-pass and high-pass filters for separable convolutions.
 /// wname: name of the filter ("haar", "db3", "sym4", ...)
 /// Returns : the filter width "hlen" if success ; a negative value otherwise.

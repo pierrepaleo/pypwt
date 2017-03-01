@@ -8,8 +8,6 @@
 #define SQRT_2 1.4142135623730951
 #include <cublas.h>
 
-
-
 /// soft thresholding of the detail coefficients (2D)
 /// Must be lanched with block size (Nc, Nr) : the size of the current coefficient vector
 __global__ void w_kern_soft_thresh(DTYPE* c_h, DTYPE* c_v, DTYPE* c_d, DTYPE beta, int Nr, int Nc) {
@@ -52,24 +50,6 @@ __global__ void w_kern_soft_thresh_appcoeffs(DTYPE* c_a, DTYPE beta, int Nr, int
         c_a[gidy*Nc + gidx] = copysignf(max(fabsf(val)-beta, 0.0f), val);
     }
 }
-
-
-/// "Cousins-threshold": set to zero the detail such as abs(detail) > abs(app)
-/// Must be lanched with block size (Nc, Nr) : the size of the current coefficient vector
-__global__ void w_kern_thresh_cousins(DTYPE* c_a, DTYPE* c_h, DTYPE* c_v, DTYPE* c_d, int Nr, int Nc) {
-    int gidx = threadIdx.x + blockIdx.x*blockDim.x;
-    int gidy = threadIdx.y + blockIdx.y*blockDim.y;
-    int tid = gidy*Nc + gidx;
-    if (gidx < Nc && gidy < Nr) {
-        DTYPE val = fabsf(c_a[tid]);
-        if (val > 0) return; // CHECKME: discard non-thresholded coefficients ?
-        if (fabsf(c_h[tid]) > val) c_h[tid] = 0;
-        if (fabsf(c_v[tid]) > val) c_v[tid] = 0;
-        if (fabsf(c_d[tid]) > val) c_d[tid] = 0;
-    }
-}
-
-
 
 
 /// Hard thresholding of the detail coefficients (2D)
@@ -116,6 +96,50 @@ __global__ void w_kern_hard_thresh_appcoeffs(DTYPE* c_a, DTYPE beta, int Nr, int
     }
 }
 
+/// Projection of the coefficients onto the L-infinity ball of radius "beta" (2D).
+/// Must be lanched with block size (Nc, Nr) : the size of the current coefficient vector
+__global__ void w_kern_proj_linf(DTYPE* c_h, DTYPE* c_v, DTYPE* c_d, DTYPE beta, int Nr, int Nc) {
+    int gidx = threadIdx.x + blockIdx.x*blockDim.x;
+    int gidy = threadIdx.y + blockIdx.y*blockDim.y;
+    DTYPE val = 0.0f;
+    if (gidx < Nc && gidy < Nr) {
+        val = c_h[gidy*Nc + gidx];
+        c_h[gidy*Nc + gidx] = copysignf(min(fabsf(val), beta), val);
+
+        val = c_v[gidy*Nc + gidx];
+        c_v[gidy*Nc + gidx] = copysignf(min(fabsf(val), beta), val);
+
+        val = c_d[gidy*Nc + gidx];
+        c_d[gidy*Nc + gidx] = copysignf(min(fabsf(val), beta), val);
+    }
+}
+
+__global__ void w_kern_proj_linf_appcoeffs(DTYPE* c_a, DTYPE beta, int Nr, int Nc) {
+    int gidx = threadIdx.x + blockIdx.x*blockDim.x;
+    int gidy = threadIdx.y + blockIdx.y*blockDim.y;
+    DTYPE val = 0.0f;
+    if (gidx < Nc && gidy < Nr) {
+        val = c_a[gidy*Nc + gidx];
+        c_a[gidy*Nc + gidx] = copysignf(min(fabsf(val), beta), val);
+    }
+}
+
+/// Projection of the coefficients onto the L-infinity ball of radius "beta" (1D).
+/// Must be lanched with block size (Nc, Nr) : the size of the current coefficient vector
+__global__ void w_kern_proj_linf_1d(DTYPE* c_d, DTYPE beta, int Nr, int Nc) {
+    int gidx = threadIdx.x + blockIdx.x*blockDim.x;
+    int gidy = threadIdx.y + blockIdx.y*blockDim.y;
+    DTYPE val = 0.0f;
+    if (gidx < Nc && gidy < Nr) {
+        val = c_d[gidy*Nc + gidx];
+        c_d[gidy*Nc + gidx] = copysignf(min(fabsf(val), beta), val);
+    }
+}
+
+
+
+
+
 /// Circular shift of the image (2D and 1D)
 __global__ void w_kern_circshift(DTYPE* d_image, DTYPE* d_out, int Nr, int Nc, int sr, int sc) {
     int gidx = threadIdx.x + blockIdx.x*blockDim.x;
@@ -134,21 +158,17 @@ __global__ void w_kern_circshift(DTYPE* d_image, DTYPE* d_out, int Nr, int Nc, i
 /// ******************** Common CUDA Kernels calls *****************************
 /// ****************************************************************************
 
-void w_call_soft_thresh(DTYPE** d_coeffs, DTYPE beta, w_info winfos, int do_thresh_appcoeffs, int normalize, int threshold_cousins) {
+void w_call_soft_thresh(DTYPE** d_coeffs, DTYPE beta, w_info winfos, int do_thresh_appcoeffs, int normalize) {
     int tpb = 16; // Threads per block
     dim3 n_threads_per_block = dim3(tpb, tpb, 1);
     dim3 n_blocks;
     int Nr = winfos.Nr, Nc = winfos.Nc, do_swt = winfos.do_swt, nlevels = winfos.nlevels, ndims = winfos.ndims;
     int Nr2 = Nr, Nc2 = Nc;
     if (!do_swt) {
-        if (threshold_cousins) {
-            puts("Warning: for now, threshold_cousins is only implemented for SWT");
-            threshold_cousins = 0;
-        }
         if (ndims > 1) w_div2(&Nr2);
         w_div2(&Nc2);
     }
-    if (do_thresh_appcoeffs || (threshold_cousins && ndims > 1)) {
+    if (do_thresh_appcoeffs) {
         DTYPE beta2 = beta;
         if (normalize > 0) { // beta2 = beta/sqrt(2)^nlevels
             int nlevels2 = nlevels/2;
@@ -167,10 +187,6 @@ void w_call_soft_thresh(DTYPE** d_coeffs, DTYPE beta, w_info winfos, int do_thre
         n_blocks = dim3(w_iDivUp(Nc, tpb), w_iDivUp(Nr, tpb), 1);
         if (ndims > 1) w_kern_soft_thresh<<<n_blocks, n_threads_per_block>>>(d_coeffs[3*i+1], d_coeffs[3*i+2], d_coeffs[3*i+3], beta, Nr, Nc);
         else w_kern_soft_thresh_1d<<<n_blocks, n_threads_per_block>>>(d_coeffs[i+1], beta, Nr, Nc);
-
-        if ((threshold_cousins) && (ndims > 1)) { // no effect on 1D data
-            w_kern_thresh_cousins<<<n_blocks, n_threads_per_block>>>(d_coeffs[0], d_coeffs[3*i+1], d_coeffs[3*i+2], d_coeffs[3*i+3], Nr, Nc);
-        }
     }
 }
 
@@ -206,6 +222,34 @@ void w_call_hard_thresh(DTYPE** d_coeffs, DTYPE beta, w_info winfos, int do_thre
         else w_kern_hard_thresh_1d<<<n_blocks, n_threads_per_block>>>(d_coeffs[i+1], beta, Nr, Nc);
     }
 }
+
+
+void w_call_proj_linf(DTYPE** d_coeffs, DTYPE beta, w_info winfos, int do_thresh_appcoeffs) {
+    int tpb = 16; // Threads per block
+    dim3 n_threads_per_block = dim3(tpb, tpb, 1);
+    dim3 n_blocks;
+    int Nr = winfos.Nr, Nc = winfos.Nc, do_swt = winfos.do_swt, nlevels = winfos.nlevels, ndims = winfos.ndims;
+    int Nr2 = Nr, Nc2 = Nc;
+    if (!do_swt) {
+        if (ndims > 1) w_div2(&Nr2);
+        w_div2(&Nc2);
+    }
+    if (do_thresh_appcoeffs) {
+        n_blocks = dim3(w_iDivUp(Nc2, tpb), w_iDivUp(Nr2, tpb), 1);
+        w_kern_proj_linf_appcoeffs<<<n_blocks, n_threads_per_block>>>(d_coeffs[0], beta, Nr2, Nc2);
+    }
+    for (int i = 0; i < nlevels; i++) {
+        if (!do_swt) {
+            if (ndims > 1) w_div2(&Nr);
+            w_div2(&Nc);
+        }
+        n_blocks = dim3(w_iDivUp(Nc, tpb), w_iDivUp(Nr, tpb), 1);
+        if (ndims > 1) w_kern_proj_linf<<<n_blocks, n_threads_per_block>>>(d_coeffs[3*i+1], d_coeffs[3*i+2], d_coeffs[3*i+3], beta, Nr, Nc);
+        else w_kern_proj_linf_1d<<<n_blocks, n_threads_per_block>>>(d_coeffs[i+1], beta, Nr, Nc);
+    }
+}
+
+
 
 
 void w_shrink(DTYPE** d_coeffs, DTYPE beta, w_info winfos, int do_thresh_appcoeffs) {
@@ -377,6 +421,7 @@ void w_add_coeffs(DTYPE** dst, DTYPE** src, w_info winfos, DTYPE alpha) {
 }
 
 
+/// dst = dst + alpha*src
 void w_add_coeffs_1d(DTYPE** dst, DTYPE** src, w_info winfos, DTYPE alpha) {
     int Nr = winfos.Nr, Nc = winfos.Nc, do_swt = winfos.do_swt, nlevels = winfos.nlevels;
     // Det Coeffs
