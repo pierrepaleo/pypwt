@@ -208,7 +208,7 @@ class custom_build_ext(build_ext):
 setup(
     name='pypwt',
     author='Pierre Paleo',
-    version='0.8.0',
+    version='0.8.1',
     author_email = "pierre.paleo@esrf.fr",
     maintainer = "Pierre Paleo",
     maintainer_email = "pierre.paleo@esrf.fr",

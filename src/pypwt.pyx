@@ -453,7 +453,7 @@ cdef class Wavelets:
         alpha: coefficient multiplying the coefficients of W (optional, default is 1)
         """
 
-        cdef float c_alpha = 1.0
+        cdef float c_alpha = alpha
         self.w.add_wavelet((W.w)[0], c_alpha)
 
 
@@ -502,7 +502,7 @@ cdef class Wavelets:
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "0.8.0"
+        return "0.8.1"
 
 
 
