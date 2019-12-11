@@ -655,7 +655,9 @@ int Wavelets::add_wavelet(Wavelets W, DTYPE alpha) {
 }
 
 
-
+unsigned long int Wavelets::get_int_ptr(void) {
+    return (unsigned long int) d_image;
+}
 
 
 

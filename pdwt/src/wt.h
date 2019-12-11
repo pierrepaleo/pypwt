@@ -71,6 +71,8 @@ class Wavelets {
     int set_filters_inverse(DTYPE* filter1, DTYPE* filter2, DTYPE* filter3 = NULL, DTYPE* filter4 = NULL);
 
     int add_wavelet(Wavelets W, DTYPE alpha=1.0f);
+
+    unsigned long int get_int_ptr(void);
 };
 
 

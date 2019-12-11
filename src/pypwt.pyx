@@ -55,6 +55,7 @@ cdef extern from "../pdwt/src/wt.h":
         void set_image(float*, int)
         void set_coeff(float*, int, int)
         int add_wavelet(C_Wavelets, float)
+        __intptr_t get_int_ptr()
 
 
 cdef class Wavelets:
@@ -479,6 +480,23 @@ cdef class Wavelets:
                 raise ValueError("set_coefInvalid coefficient shape : expected %s, got %s" % (str(dcoeff.shape), str(coeff.shape)))
 
         self.w.set_coeff(<float*> np.PyArray_DATA(coeff), num, 0)
+
+
+    def image_int_ptr(self):
+        """
+        Return the address (unsigned int64) of the device image.
+        """
+        return self.w.image_int_ptr()
+
+
+    def coeff_int_ptr(self, num):
+        """
+        Return the address (unsigned int64) of a device coefficient.
+
+        num: int
+            Number of the coefficient
+        """
+        return self.w.coeff_int_ptr(num)
 
 
     def __dealloc__(self):
