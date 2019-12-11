@@ -2,6 +2,7 @@ import numpy as np
 cimport numpy as np
 assert sizeof(int) == sizeof(np.int32_t)
 from copy import deepcopy
+from libc.stdint cimport intptr_t
 #~ from .version import version
 
 
@@ -55,7 +56,8 @@ cdef extern from "../pdwt/src/wt.h":
         void set_image(float*, int)
         void set_coeff(float*, int, int)
         int add_wavelet(C_Wavelets, float)
-        __intptr_t get_int_ptr()
+        intptr_t image_int_ptr()
+        intptr_t coeff_int_ptr(int)
 
 
 cdef class Wavelets:
