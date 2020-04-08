@@ -101,7 +101,7 @@ ext = Extension('pypwt',
                 # we're only going to use certain compiler args with nvcc and not with gcc
                 # the implementation of this trick is in customize_compiler() below
                 extra_compile_args={'gcc': [],
-                                    'nvcc': ['-arch=sm_30', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
+                                    'nvcc': ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
                 #~ extra_link_args=['-dlink', '-arch=sm_30'], # TEST
                 include_dirs = [numpy_include, CUDA['include'], 'src'])
 
@@ -148,7 +148,6 @@ def customize_compiler_for_nvcc(self):
 
 
 
-# TEST
 def customize_linker_for_nvcc(self):
     """
     Same as customize_compiler_for_nvcc, but for linker
@@ -189,26 +188,17 @@ def customize_linker_for_nvcc(self):
 
 
 
-
-
-
-
-
-
-
 # run the customize_compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
         customize_compiler_for_nvcc(self.compiler)
-        #~ self.compiler.set_executable('linker_so', CUDA['nvcc']) # TEST
-        #~ self.compiler.set_executable('linker', CUDA['nvcc']) # TEST
         build_ext.build_extensions(self)
 
 
 setup(
     name='pypwt',
     author='Pierre Paleo',
-    version='0.8.1',
+    version='0.9.0',
     author_email = "pierre.paleo@esrf.fr",
     maintainer = "Pierre Paleo",
     maintainer_email = "pierre.paleo@esrf.fr",

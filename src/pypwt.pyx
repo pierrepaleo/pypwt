@@ -2,6 +2,7 @@ import numpy as np
 cimport numpy as np
 assert sizeof(int) == sizeof(np.int32_t)
 from copy import deepcopy
+from libc.stdint cimport intptr_t
 #~ from .version import version
 
 
@@ -55,6 +56,8 @@ cdef extern from "../pdwt/src/wt.h":
         void set_image(float*, int)
         void set_coeff(float*, int, int)
         int add_wavelet(C_Wavelets, float)
+        intptr_t image_int_ptr()
+        intptr_t coeff_int_ptr(int)
 
 
 cdef class Wavelets:
@@ -481,6 +484,23 @@ cdef class Wavelets:
         self.w.set_coeff(<float*> np.PyArray_DATA(coeff), num, 0)
 
 
+    def image_int_ptr(self):
+        """
+        Return the address (unsigned int64) of the device image.
+        """
+        return self.w.image_int_ptr()
+
+
+    def coeff_int_ptr(self, num):
+        """
+        Return the address (unsigned int64) of a device coefficient.
+
+        num: int
+            Number of the coefficient
+        """
+        return self.w.coeff_int_ptr(num)
+
+
     def __dealloc__(self):
         """
         Destructor
@@ -502,7 +522,7 @@ cdef class Wavelets:
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "0.8.1"
+        return "0.9.0"
 
 
 
