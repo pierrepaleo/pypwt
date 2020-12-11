@@ -91,19 +91,24 @@ try:
 except AttributeError:
     numpy_include = numpy.get_numpy_include()
 
-ext = Extension('pypwt',
-                sources = ['pdwt/src/wt.cu', 'pdwt/src/common.cu', 'pdwt/src/utils.cu', 'pdwt/src/separable.cu', 'pdwt/src/nonseparable.cu', 'pdwt/src/haar.cu', 'pdwt/src/filters.cpp', 'src/pypwt.pyx'],
-                #~ library_dirs=[CUDA['lib64']],
-                libraries=['cudart', 'cublas'],
-                language='c++',
-                #~ runtime_library_dirs=[CUDA['lib64']],
-                # this syntax is specific to this build system
-                # we're only going to use certain compiler args with nvcc and not with gcc
-                # the implementation of this trick is in customize_compiler() below
-                extra_compile_args={'gcc': [],
-                                    'nvcc': ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
-                #~ extra_link_args=['-dlink', '-arch=sm_30'], # TEST
-                include_dirs = [numpy_include, CUDA['include'], 'src'])
+ext = Extension('pycudwt',
+    sources = [
+        'pdwt/src/wt.cu', 'pdwt/src/common.cu', 'pdwt/src/utils.cu',
+        'pdwt/src/separable.cu', 'pdwt/src/nonseparable.cu', 'pdwt/src/haar.cu',
+        'pdwt/src/filters.cpp',
+        'src/pypwt.pyx'
+    ],
+    #~ library_dirs=[CUDA['lib64']],
+    libraries=['cudart', 'cublas'],
+    language='c++',
+    #~ runtime_library_dirs=[CUDA['lib64']],
+    # this syntax is specific to this build system
+    # we're only going to use certain compiler args with nvcc and not with gcc
+    # the implementation of this trick is in customize_compiler() below
+    extra_compile_args={'gcc': [],
+                        'nvcc': ['--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
+    include_dirs = [numpy_include, CUDA['include'], 'src']
+)
 
 
 def customize_compiler_for_nvcc(self):
@@ -196,7 +201,7 @@ class custom_build_ext(build_ext):
 
 
 setup(
-    name='pypwt',
+    name='pycudwt',
     author='Pierre Paleo',
     version='1.0.0',
     author_email = "pierre.paleo@esrf.fr",
