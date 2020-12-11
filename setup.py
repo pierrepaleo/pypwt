@@ -152,7 +152,6 @@ def customize_compiler_for_nvcc(self):
     self._compile = _compile
 
 
-
 def customize_linker_for_nvcc(self):
     """
     Same as customize_compiler_for_nvcc, but for linker
@@ -192,7 +191,6 @@ def customize_linker_for_nvcc(self):
     self.link = _link
 
 
-
 # run the customize_compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
@@ -208,15 +206,19 @@ setup(
     maintainer = "Pierre Paleo",
     maintainer_email = "pierre.paleo@esrf.fr",
 
+    install_requires = [
+        'Cython',
+        'numpy',
+    ],
+
     long_description = """
-    Python Wrapper for Parallel Discrete Wavelet Transform
+    Python Wrapper for Cuda Discrete Wavelet Transform
     """,
 
     ext_modules = [ext],
     # inject our custom trigger
     cmdclass={'build_ext': custom_build_ext},
 
-
-
     # since the package has c code, the egg cannot be zipped
-    zip_safe=False)
+    zip_safe=False
+)
