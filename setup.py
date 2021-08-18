@@ -94,7 +94,7 @@ except AttributeError:
 ext = Extension('pypwt',
                 sources = ['pdwt/src/wt.cu', 'pdwt/src/common.cu', 'pdwt/src/utils.cu', 'pdwt/src/separable.cu', 'pdwt/src/nonseparable.cu', 'pdwt/src/haar.cu', 'pdwt/src/filters.cpp', 'src/pypwt.pyx'],
                 #~ library_dirs=[CUDA['lib64']],
-                library_dirs = [CUDA['lib64']],
+                library_dirs = [CUDA['lib']],
                 libraries=['cudart', 'cublas'],
                 language='c++',
                 #~ runtime_library_dirs=[CUDA['lib64']],
