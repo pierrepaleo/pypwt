@@ -22,7 +22,7 @@ For the tests, you need pywavelets. `python-pywt` is packaged for Debian-like di
 
 ### Compiling
 
-Conda build for a specific *cudatoolkit* versio that matches your environment, e.g.:
+Conda build for a specific *cudatoolkit* version that matches one in your conda environment, e.g.:
 
 ```
 export CUDA_VERSION="10.1.243"
