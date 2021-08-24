@@ -22,6 +22,13 @@ For the tests, you need pywavelets. `python-pywt` is packaged for Debian-like di
 
 ### Compiling
 
+Conda build for a specific cudatoolkit that matches your environment
+
+```
+export CUDA_VERSION="10.1.243"
+conda build conda-recipe/
+```
+
 Running
 
 ```python
@@ -67,5 +74,3 @@ W.soft_threshold(10)
 W.inverse()
 imshow(W.image)
 ```
-
-

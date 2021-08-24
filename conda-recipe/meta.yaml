@@ -1,11 +1,11 @@
-{% set repo = "master" %}
+{% set version = "0.9" %}
 
 package:
   name: pypwt
-  version: "0.9_"{{ environ['CUDA_VERSION'] }}
+  version: {{ version }}_{{ environ['CUDA_VERSION'] }}
 
 source:
-  url: https://github.com/dkazanc/pypwt/archive/{{ repo }}.tar.gz
+  url: https://github.com/dkazanc/pypwt/archive/{{ version }}.tar.gz
 
 requirements:
   build:
