@@ -5,7 +5,7 @@ package:
   version: {{ version }}_{{ environ['CUDA_VERSION'] }}
 
 source:
-  url: https://github.com/dkazanc/pypwt/archive/{{ version }}.tar.gz
+  url: https://github.com/pierrepaleo/pypwt/archive/{{ version }}.tar.gz
 
 requirements:
   build:
