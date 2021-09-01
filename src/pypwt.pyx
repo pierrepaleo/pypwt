@@ -3,8 +3,6 @@ cimport numpy as np
 assert sizeof(int) == sizeof(np.int32_t)
 from copy import deepcopy
 from libc.stdint cimport intptr_t
-#~ from .version import version
-
 
 cdef extern from "../pdwt/src/wt.h":
 
