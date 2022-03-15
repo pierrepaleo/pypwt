@@ -20,7 +20,7 @@ For the tests, you need pywavelets. `python-pywt` is packaged for Debian-like di
 pip install pycudwt
 ```
 
-### Development version (from github)
+### Development version (from github)
 
 ```bash
 git clone https://github.com/pierrepaleo/pypwt
