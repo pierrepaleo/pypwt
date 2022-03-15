@@ -192,14 +192,10 @@ def customize_linker_for_nvcc(self):
         build_temp=None,
         target_lang=None,
     ):
-        if 1:  ########
-            self.set_executable("linker_so", CUDA["nvcc"])
-            # use only a subset of the extra_postargs, which are 1-1 translated
-            # from the extra_compile_args in the Extension class
-            postargs = extra_postargs["nvcc"]
-        else:
-            raise RuntimeError("")
-            # ~ postargs = extra_postargs['gcc']
+        self.set_executable("linker_so", CUDA["nvcc"])
+        # use only a subset of the extra_postargs, which are 1-1 translated
+        # from the extra_compile_args in the Extension class
+        postargs = extra_postargs["nvcc"]
 
         super(
             target_desc,
