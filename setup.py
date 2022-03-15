@@ -95,6 +95,12 @@ try:
 except AttributeError:
     numpy_include = numpy.get_numpy_include()
 
+
+nvcc_compile_args = ["--ptxas-options=-v", "-c", "--compiler-options", "'-fPIC'"]
+compute_cap = os.environ.get("PYCUDWT_CC", None)
+if compute_cap is not None:
+    nvcc_compile_args.append("-arch=compute_%s" % compute_cap)
+    nvcc_compile_args.append("-code=sm_%s" % compute_cap)
 ext = Extension(
     "pycudwt",
     sources=[
@@ -116,7 +122,7 @@ ext = Extension(
     # the implementation of this trick is in customize_compiler() below
     extra_compile_args={
         "gcc": [],
-        "nvcc": ["--ptxas-options=-v", "-c", "--compiler-options", "'-fPIC'"],
+        "nvcc": nvcc_compile_args,
     },
     include_dirs=[numpy_include, CUDA["include"], "src"],
 )
