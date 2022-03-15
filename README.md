@@ -28,6 +28,10 @@ cd pypwt
 pip install .
 ```
 
+You can specify the compute capability when building the library:  
+```bash
+PYCUDWT_CC=86 pip install .
+```
 
 ### Testing
 
