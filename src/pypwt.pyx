@@ -3,7 +3,6 @@ cimport numpy as np
 assert sizeof(int) == sizeof(np.int32_t)
 from copy import deepcopy
 from libc.stdint cimport intptr_t
-#~ from .version import version
 
 
 cdef extern from "../pdwt/src/wt.h":
@@ -104,7 +103,6 @@ cdef class Wavelets:
     cdef list _coeffs
     cdef tuple shape
     cdef readonly int batched1d
-#~     cdef readonly str adr
 
     def __cinit__(self,
                     np.ndarray img,
@@ -514,7 +512,6 @@ cdef class Wavelets:
             self.w = NULL
 
 
-
     @classmethod
     def version(cls):
         """
@@ -522,7 +519,4 @@ cdef class Wavelets:
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "0.9.0"
-
-
-
+        return "1.0.1"
