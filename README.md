@@ -1,16 +1,10 @@
-## pypwt
+## pycudwt
 
-pypwt is a python module for parallel Discrete Wavelet Transform.
+pycudwt is a python module for parallel Discrete Wavelet Transform.
 This is a wrapper of [PDWT](https://github.com/pierrepaleo/PDWT).
 
-
-## Features
-
-* Pythonic interface providing the full potential of [PDWT](https://github.com/pierrepaleo/PDWT)
-* Compatible with Python >=2.7 and Python >=3.4
-* Test suite
-* Documentation and examples
-
+**Note:** this project was formerly named `pypwt`.
+It has been renamed `pycudwt` to have a spot on [pypi](https://pypi.org/project/pycudwt).
 
 ## Installation
 
@@ -20,20 +14,24 @@ You need cython and nvcc (the Nvidia CUDA compiler, available in the [NVIDIA CUD
 
 For the tests, you need pywavelets. `python-pywt` is packaged for Debian-like distributions, more recent changes are available on [the new repository](https://github.com/PyWavelets/pywt).
 
-### Compiling
+### Stable version (from pypi)
 
-Running
-
-```python
-python setup.py install --user
+```bash
+pip install pycudwt
 ```
 
-should build and install the module. For python3, just replace `python` with `python3`.
+### Development version (from github)
+
+```bash
+git clone https://github.com/pierrepaleo/pypwt
+cd pypwt
+pip install .
+```
 
 
 ### Testing
 
-If `pywt` is available, you can check if pypwt gives consistent results :
+If `pywt` is available, you can check if pycudwt gives consistent results :
 
 ```bash
 cd test
@@ -45,10 +43,10 @@ the results are stored in `results.log`.
 
 ## Getting started
 
-Computing a Wavelet Transform wity pypwt is simple. In `ipython`:
+Computing a Wavelet Transform wity pycudwt is simple. In `ipython`:
 
 ```python
-from pypwt import Wavelets
+from pycudwt import Wavelets
 from scipy.misc import lena
 l = lena()
 W = Wavelets(l, "db2", 3)
