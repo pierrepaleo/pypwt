@@ -239,10 +239,7 @@ setup(
     author_email="pierre.paleo@esrf.fr",
     maintainer="Pierre Paleo",
     maintainer_email="pierre.paleo@esrf.fr",
-    install_requires=[
-        "Cython",
-        "numpy",
-    ],
+    install_requires=["numpy"],
     long_description="""
     Python Wrapper for Cuda Discrete Wavelet Transform
     """,
