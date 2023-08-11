@@ -57,6 +57,8 @@ cdef extern from "../pdwt/src/wt.h":
         int add_wavelet(C_Wavelets, float)
         intptr_t image_int_ptr()
         intptr_t coeff_int_ptr(int)
+        int set_filters_forward(char* filtername, unsigned int len, float* filter1, float* filter2, float* filter3, float* filter4)
+        int set_filters_inverse(float* filter1, float* filter2, float* filter3, float* filter4)
 
 
 cdef class Wavelets:
@@ -480,6 +482,60 @@ cdef class Wavelets:
                 raise ValueError("set_coefInvalid coefficient shape : expected %s, got %s" % (str(dcoeff.shape), str(coeff.shape)))
 
         self.w.set_coeff(<float*> np.PyArray_DATA(coeff), num, 0)
+
+
+    def set_filters_forward(self, filter_name, lowpass, highpass, LH=None, HL=None):
+        """
+        Set a custom filter bank. This will re-define the current wavelet transform!
+
+        Parameters
+        ----------
+        filter_name: str
+            Name of your filter bank.
+        lowpass: numpy.ndarray
+            array containing the low-pass filter coefficients.
+            If the transform is non-separable, this contains the "LL" filter.
+        highpass: numpy.ndarray
+            array containing the high-pass filter coefficients.
+            If the transform is non-separable, this contains the "HH" filter.
+        LH: numpy.ndarray, optional
+            array containing the "LH" (low-high) filter if the transform is non-separable.
+            Ignored if the transform is separable.
+        HL: numpy.ndarray, optional
+            array containing the "HL" (high-low) filter if the transform is non-separable.
+            Ignored if the transform is separable.
+        """
+        if len(lowpass) != len(highpass):
+            raise ValueError("lowpass and highpass must have the same length")
+        c_lowpass = <float*> np.PyArray_DATA(self._checkarray(lowpass))
+        c_highpass = <float*> np.PyArray_DATA(self._checkarray(highpass))
+        filter_len = np.int32(len(lowpass))
+        if self.do_separable:
+            self.w.set_filters_forward(
+                filter_name,
+                filter_len,
+                c_lowpass,
+                c_highpass,
+                NULL,
+                NULL
+            )
+        else:
+            if LH is None or HL is None:
+                raise ValueError("Expected LH and HL filters for non-separable transform")
+            if len(LH) != len(HL):
+                raise ValueError("HL and HL filters must have the same length")
+            c_LH = <float*> np.PyArray_DATA(self._checkarray(LH))
+            c_HL = <float*> np.PyArray_DATA(self._checkarray(HL))
+            # The underlying Cuda function has a different argument orders:
+            # w_set_filters_forward_nonseparable(LL, LH, HL, HH)
+            self.w.set_filters_forward(
+                filter_name,
+                filter_len,
+                c_lowpass,
+                c_LH,
+                c_HL,
+                c_highpass
+            )
 
 
     def image_int_ptr(self):
