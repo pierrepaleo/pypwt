@@ -575,4 +575,4 @@ cdef class Wavelets:
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "1.0.2"
+        return "1.0.3"

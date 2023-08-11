@@ -235,7 +235,7 @@ class custom_build_ext(build_ext):
 setup(
     name="pycudwt",
     author="Pierre Paleo",
-    version="1.0.2",
+    version="1.0.3",
     author_email="pierre.paleo@esrf.fr",
     maintainer="Pierre Paleo",
     maintainer_email="pierre.paleo@esrf.fr",
