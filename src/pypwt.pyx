@@ -484,7 +484,7 @@ cdef class Wavelets:
         self.w.set_coeff(<float*> np.PyArray_DATA(coeff), num, 0)
 
 
-    def set_filters_forward(self, filter_name, lowpass, highpass, LH=None, HL=None):
+    def set_wavelets_filters(self, filter_name, lowpass, highpass, i_lowpass, i_highpass, LH=None, HL=None, i_LH=None, i_HL=None):
         """
         Set a custom filter bank. This will re-define the current wavelet transform!
 
@@ -498,43 +498,80 @@ cdef class Wavelets:
         highpass: numpy.ndarray
             array containing the high-pass filter coefficients.
             If the transform is non-separable, this contains the "HH" filter.
+        i_lowpass: numpy.ndarray
+            array containing the inverse low-pass filter coefficients.
+            If the transform is non-separable, this contains the "inv_LL" filter.
+        i_highpass: numpy.ndarray
+            array containing the inverse high-pass filter coefficients.
+            If the transform is non-separable, this contains the "inv_HH" filter.
         LH: numpy.ndarray, optional
-            array containing the "LH" (low-high) filter if the transform is non-separable.
-            Ignored if the transform is separable.
+            array containing the "LH" (low-high) filter.
         HL: numpy.ndarray, optional
-            array containing the "HL" (high-low) filter if the transform is non-separable.
-            Ignored if the transform is separable.
+            array containing the "HL" (high-low) filter.
+        i_LH: numpy.ndarray, optional
+            array containing the "inv_LH" (inverse low-high) filter.
+        i_HL: numpy.ndarray, optional
+            array containing the "inv_HL" (inverse high-low) filter.
+
+        Notes
+        -----
+        The parameters LH, HL, i_LH, i_HL are ignored if the current transform is separable.
         """
-        if len(lowpass) != len(highpass):
-            raise ValueError("lowpass and highpass must have the same length")
-        c_lowpass = <float*> np.PyArray_DATA(self._checkarray(lowpass))
-        c_highpass = <float*> np.PyArray_DATA(self._checkarray(highpass))
+        if any(len(arr) != len(lowpass) for arr in [lowpass, highpass, i_lowpass, i_highpass, LH, HL, i_LH, i_HL] if arr is not None):
+            raise ValueError("All filters must have the same length")
+
+        # cdef are only allowed here
+        cdef float[:] c_lowpass = self._checkarray(lowpass)
+        cdef float[:] c_highpass = self._checkarray(highpass)
+        cdef float[:] c_i_lowpass = self._checkarray(i_lowpass)
+        cdef float[:] c_i_highpass = self._checkarray(i_highpass)
+        cdef float[:] c_LH
+        cdef float[:] c_HL
+        cdef float[:] c_i_LH
+        cdef float[:] c_i_HL
+
+        filter_name_str = filter_name.encode("ASCII")
+        cdef char* c_filter_name = filter_name_str
         filter_len = np.int32(len(lowpass))
+
         if self.do_separable:
             self.w.set_filters_forward(
-                filter_name,
+                c_filter_name,
                 filter_len,
-                c_lowpass,
-                c_highpass,
+                &(c_lowpass[0]),
+                &(c_highpass[0]),
+                NULL,
+                NULL
+            )
+            self.w.set_filters_inverse(
+                &(c_i_lowpass[0]),
+                &(c_i_highpass[0]),
                 NULL,
                 NULL
             )
         else:
-            if LH is None or HL is None:
+            if LH is None or HL is None or i_LH is None or i_HL is None:
                 raise ValueError("Expected LH and HL filters for non-separable transform")
-            if len(LH) != len(HL):
-                raise ValueError("HL and HL filters must have the same length")
-            c_LH = <float*> np.PyArray_DATA(self._checkarray(LH))
-            c_HL = <float*> np.PyArray_DATA(self._checkarray(HL))
+            c_LH = self._checkarray(LH)
+            c_HL = self._checkarray(HL)
             # The underlying Cuda function has a different argument orders:
             # w_set_filters_forward_nonseparable(LL, LH, HL, HH)
             self.w.set_filters_forward(
-                filter_name,
+                c_filter_name,
                 filter_len,
-                c_lowpass,
-                c_LH,
-                c_HL,
-                c_highpass
+                &(c_lowpass[0]),
+                &(c_LH[0]),
+                &(c_HL[0]),
+                &(c_highpass[0])
+            )
+            c_i_LH = self._checkarray(i_LH)
+            c_i_HL = self._checkarray(i_HL)
+            # w_set_filters_inverse_nonseparable(LL, LH, HL, HH)
+            self.w.set_filters_inverse(
+                &(c_i_lowpass[0]),
+                &(c_i_LH[0]),
+                &(c_i_HL[0]),
+                &(c_i_highpass[0])
             )
 
 
