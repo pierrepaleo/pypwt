@@ -57,6 +57,8 @@ cdef extern from "../pdwt/src/wt.h":
         int add_wavelet(C_Wavelets, float)
         intptr_t image_int_ptr()
         intptr_t coeff_int_ptr(int)
+        int set_filters_forward(char* filtername, unsigned int len, float* filter1, float* filter2, float* filter3, float* filter4)
+        int set_filters_inverse(float* filter1, float* filter2, float* filter3, float* filter4)
 
 
 cdef class Wavelets:
@@ -482,6 +484,97 @@ cdef class Wavelets:
         self.w.set_coeff(<float*> np.PyArray_DATA(coeff), num, 0)
 
 
+    def set_wavelets_filters(self, filter_name, lowpass, highpass, i_lowpass, i_highpass, LH=None, HL=None, i_LH=None, i_HL=None):
+        """
+        Set a custom filter bank. This will re-define the current wavelet transform!
+
+        Parameters
+        ----------
+        filter_name: str
+            Name of your filter bank.
+        lowpass: numpy.ndarray
+            array containing the low-pass filter coefficients.
+            If the transform is non-separable, this contains the "LL" filter.
+        highpass: numpy.ndarray
+            array containing the high-pass filter coefficients.
+            If the transform is non-separable, this contains the "HH" filter.
+        i_lowpass: numpy.ndarray
+            array containing the inverse low-pass filter coefficients.
+            If the transform is non-separable, this contains the "inv_LL" filter.
+        i_highpass: numpy.ndarray
+            array containing the inverse high-pass filter coefficients.
+            If the transform is non-separable, this contains the "inv_HH" filter.
+        LH: numpy.ndarray, optional
+            array containing the "LH" (low-high) filter.
+        HL: numpy.ndarray, optional
+            array containing the "HL" (high-low) filter.
+        i_LH: numpy.ndarray, optional
+            array containing the "inv_LH" (inverse low-high) filter.
+        i_HL: numpy.ndarray, optional
+            array containing the "inv_HL" (inverse high-low) filter.
+
+        Notes
+        -----
+        The parameters LH, HL, i_LH, i_HL are ignored if the current transform is separable.
+        """
+        if any(len(arr) != len(lowpass) for arr in [lowpass, highpass, i_lowpass, i_highpass, LH, HL, i_LH, i_HL] if arr is not None):
+            raise ValueError("All filters must have the same length")
+
+        # cdef are only allowed here
+        cdef float[:] c_lowpass = self._checkarray(lowpass)
+        cdef float[:] c_highpass = self._checkarray(highpass)
+        cdef float[:] c_i_lowpass = self._checkarray(i_lowpass)
+        cdef float[:] c_i_highpass = self._checkarray(i_highpass)
+        cdef float[:] c_LH
+        cdef float[:] c_HL
+        cdef float[:] c_i_LH
+        cdef float[:] c_i_HL
+
+        filter_name_str = filter_name.encode("ASCII")
+        cdef char* c_filter_name = filter_name_str
+        filter_len = np.int32(len(lowpass))
+
+        if self.do_separable:
+            self.w.set_filters_forward(
+                c_filter_name,
+                filter_len,
+                &(c_lowpass[0]),
+                &(c_highpass[0]),
+                NULL,
+                NULL
+            )
+            self.w.set_filters_inverse(
+                &(c_i_lowpass[0]),
+                &(c_i_highpass[0]),
+                NULL,
+                NULL
+            )
+        else:
+            if LH is None or HL is None or i_LH is None or i_HL is None:
+                raise ValueError("Expected LH and HL filters for non-separable transform")
+            c_LH = self._checkarray(LH)
+            c_HL = self._checkarray(HL)
+            # The underlying Cuda function has a different argument orders:
+            # w_set_filters_forward_nonseparable(LL, LH, HL, HH)
+            self.w.set_filters_forward(
+                c_filter_name,
+                filter_len,
+                &(c_lowpass[0]),
+                &(c_LH[0]),
+                &(c_HL[0]),
+                &(c_highpass[0])
+            )
+            c_i_LH = self._checkarray(i_LH)
+            c_i_HL = self._checkarray(i_HL)
+            # w_set_filters_inverse_nonseparable(LL, LH, HL, HH)
+            self.w.set_filters_inverse(
+                &(c_i_lowpass[0]),
+                &(c_i_LH[0]),
+                &(c_i_HL[0]),
+                &(c_i_highpass[0])
+            )
+
+
     def image_int_ptr(self):
         """
         Return the address (unsigned int64) of the device image.
@@ -519,4 +612,4 @@ cdef class Wavelets:
 
         This mechanism is not so elegant and will be replaced in the future
         """
-        return "1.0.2"
+        return "1.0.3"
